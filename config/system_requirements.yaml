@@ -1,0 +1,7 @@
+nvidia:
+  min_driver_version: 470
+  min_cuda_version: 11.0
+  min_gpu_count: 1
+  min_gpu_memory_gb: 3
+  max_gpu_power_limit_w: 250
+  min_gpu_power_limit_w: 100
