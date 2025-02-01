@@ -1,5 +1,5 @@
 nvidia:
-  min_driver_version: 470
+  min_driver_version: 570
   min_cuda_version: 11.0
   min_gpu_count: 1
   min_gpu_memory_gb: 3
