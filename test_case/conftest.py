@@ -7,6 +7,7 @@ import platform
 from datetime import datetime
 import allure
 from utils import yaml_data
+import torch
 
 @pytest.fixture(scope="session", autouse=True)
 def env_info(request):
@@ -61,6 +62,37 @@ def test_timer():
         "执行时间",
         allure.attachment_type.TEXT
     )
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--device",
+        action="store",
+        default="cpu",
+        choices=["cpu", "cuda"],
+        help="选择测试设备：cpu或cuda"
+    )
+
+@pytest.fixture(scope="session")
+def device(request):
+    """
+    提供测试设备参数（cpu/cuda）
+    """
+    dev = request.config.getoption("--device")
+    if dev == "cuda":
+        if not torch.cuda.is_available():
+            pytest.skip("CUDA设备不可用")
+        dev = torch.device("cuda:0")  # 使用torch.device对象
+    else:
+        dev = torch.device("cpu")
+    
+    print(f"\n当前测试运行设备: {dev}")
+    print(f"PyTorch版本: {torch.__version__}")
+    if dev.type == "cuda":
+        print(f"CUDA版本: {torch.version.cuda}")
+        print(f"CUDA设备信息: {torch.cuda.get_device_name()}")
+        print(f"CUDA设备数量: {torch.cuda.device_count()}")
+    
+    return dev
 
 def pytest_runtest_setup(item):
     """
