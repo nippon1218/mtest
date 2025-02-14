@@ -14,26 +14,364 @@ import time
 @allure.story('基础算子测试')
 @allure.title('加法运算测试')
 def test_add(device):
-    """测试 torch.add 在正向传播中的加法操作"""
+    """测试 torch.add 在正向传播中的加法操作，包含多种测试场景"""
     print(f"\n在test_add中使用的设备: {device}")
     print(f"CUDA是否可用: {torch.cuda.is_available()}")
+    
+    # 1. 基本加法测试
     a = torch.tensor([1.0, 2.0, 3.0], device=device)
     b = torch.tensor([4.0, 5.0, 6.0], device=device)
     result = torch.add(a, b)
     expected = torch.tensor([5.0, 7.0, 9.0], device=device)
-    print(f"当前张量设备: a={a.device}, b={b.device}, result={result.device}")
+    assert torch.allclose(result, expected)
+    print(f"基本加法测试通过: a={a.device}, b={b.device}, result={result.device}")
+    
+    # 2. 不同数据类型测试
+    a_int = torch.tensor([1, 2, 3], dtype=torch.int32, device=device)
+    b_float = torch.tensor([4.0, 5.0, 6.0], dtype=torch.float32, device=device)
+    result = torch.add(a_int, b_float)
+    assert result.dtype == torch.float32  # 结果应该是float类型
+    assert torch.allclose(result, torch.tensor([5.0, 7.0, 9.0], device=device))
+    
+    # 3. 广播机制测试
+    a_broadcast = torch.tensor([[1.0], [2.0]], device=device)  # shape: (2,1)
+    b_broadcast = torch.tensor([3.0, 4.0, 5.0], device=device)  # shape: (3,)
+    result = torch.add(a_broadcast, b_broadcast)  # 结果shape应该是(2,3)
+    assert result.shape == (2, 3)
+    expected = torch.tensor([[4.0, 5.0, 6.0], [5.0, 6.0, 7.0]], device=device)
+    assert torch.allclose(result, expected)
+    
+    # 4. 标量加法测试
+    scalar = 2.0
+    result = torch.add(a, scalar)
+    expected = torch.tensor([3.0, 4.0, 5.0], device=device)
+    assert torch.allclose(result, expected)
+    
+    # 5. 零维张量测试
+    scalar_tensor = torch.tensor(2.0, device=device)
+    result = torch.add(a, scalar_tensor)
+    assert torch.allclose(result, expected)
+    
+    # 6. 边界值测试
+    max_val = torch.finfo(torch.float32).max
+    min_val = torch.finfo(torch.float32).min
+    a_edge = torch.tensor([max_val, min_val], device=device)
+    b_edge = torch.tensor([1.0, -1.0], device=device)
+    result = torch.add(a_edge, b_edge)
+    assert not torch.isnan(result).any()  # 确保结果不包含NaN
+    
+    # 7. alpha参数测试
+    result = torch.add(a, b, alpha=2.0)  # 等价于 a + 2.0 * b
+    expected = torch.tensor([9.0, 12.0, 15.0], device=device)
     assert torch.allclose(result, expected)
 
 @allure.epic('llama算子正反向测试')
 @allure.story('基础算子测试')
 @allure.title('矩阵乘法测试')
 def test_matmul(device):
-    """测试 torch.matmul（或 torch.mm）在正向传播中的矩阵乘法"""
+    """
+    测试PyTorch的matmul算子在不同场景下的表现，包括：
+    1. 基本矩阵乘法测试
+    2. 向量运算测试
+    3. 广播机制测试
+    4. 批处理测试
+    5. 特殊情况测试
+    6. 数值精度测试
+    7. 梯度测试
+    8. 性能测试
+    """
+    print(f"\n在test_matmul中使用的设备: {device}")
+    
+    # 1. 基本矩阵乘法测试
+    # 1.1 2D矩阵乘法
     a = torch.tensor([[1.0, 2.0], [3.0, 4.0]], device=device)
     b = torch.tensor([[5.0, 6.0], [7.0, 8.0]], device=device)
     result = torch.matmul(a, b)
     expected = torch.tensor([[19.0, 22.0], [43.0, 50.0]], device=device)
     assert torch.allclose(result, expected)
+    print("基本矩阵乘法测试通过")
+    
+    # 2. 向量运算测试
+    # 2.1 向量点积
+    v1 = torch.tensor([1.0, 2.0, 3.0], device=device)
+    v2 = torch.tensor([4.0, 5.0, 6.0], device=device)
+    result = torch.matmul(v1, v2)
+    assert torch.allclose(result, torch.tensor(32.0, device=device))
+    
+    # 3. 广播机制测试
+    # 3.1 简单广播
+    a = torch.randn(3, 4, 5, device=device)
+    b = torch.randn(5, 2, device=device)
+    result = torch.matmul(a, b)
+    assert result.shape == (3, 4, 2)
+    
+    # 3.2 复杂广播
+    a = torch.randn(2, 3, 4, 5, device=device)
+    b = torch.randn(2, 1, 5, 6, device=device)
+    result = torch.matmul(a, b)
+    assert result.shape == (2, 3, 4, 6)
+    print("广播机制测试通过")
+    
+    # 4. 批处理测试
+    # 4.1 批量矩阵乘法
+    batch_size = 10
+    a = torch.randn(batch_size, 3, 4, device=device)
+    b = torch.randn(batch_size, 4, 5, device=device)
+    result = torch.matmul(a, b)
+    assert result.shape == (batch_size, 3, 5)
+    
+    # 4.2 不同批大小的广播
+    a = torch.randn(10, 1, 3, 4, device=device)
+    b = torch.randn(1, 5, 4, 2, device=device)
+    result = torch.matmul(a, b)
+    assert result.shape == (10, 5, 3, 2)
+    print("批处理测试通过")
+    
+    # 5. 特殊情况测试
+    # 5.1 空维度
+    a = torch.randn(0, 2, 3, device=device)
+    b = torch.randn(3, 4, device=device)
+    result = torch.matmul(a, b)
+    assert result.shape == (0, 2, 4)
+    
+    # 5.2 1x1矩阵
+    a = torch.tensor([[2.0]], device=device)
+    b = torch.tensor([[3.0]], device=device)
+    result = torch.matmul(a, b)
+    assert torch.allclose(result, torch.tensor([[6.0]], device=device))
+    
+    # 5.3 特殊值测试
+    print("开始特殊值测试...")
+    
+    # 5.3.1 NaN测试
+    print("5.3.1 开始 NaN 测试...")
+    
+    # 创建包含NaN的矩阵
+    nan_matrix = torch.tensor([
+        [float('nan'), 1.0],
+        [2.0, 3.0]
+    ], device=device)
+    
+    normal_matrix = torch.tensor([
+        [1.0, 2.0],
+        [3.0, 4.0]
+    ], device=device)
+    
+    # NaN与正常数相乘
+    result = torch.matmul(nan_matrix, normal_matrix)
+    assert torch.isnan(result[0,0]) and torch.isnan(result[0,1]), "NaN行与正常矩阵相乘应该得到NaN"
+    assert not torch.isnan(result[1,0]) and not torch.isnan(result[1,1]), "正常行与正常矩阵相乘不应该得到NaN"
+    
+    # 全NaN矩阵测试
+    all_nan = torch.tensor([[float('nan')]] * 4, device=device).reshape(2, 2)
+    result = torch.matmul(all_nan, normal_matrix)
+    assert torch.all(torch.isnan(result)), "全NaN矩阵与正常矩阵相乘应该得到全NaN结果"
+    
+    print("5.3.1 NaN 测试通过")
+    
+    # 5.3.2 Inf测试
+    print("5.3.2 开始 Inf 测试...")
+    
+    # 测试正无穷
+    pos_inf_matrix = torch.tensor([
+        [float('inf'), 0.0],
+        [1.0, 2.0]
+    ], device=device)
+    
+    pos_result = torch.matmul(pos_inf_matrix, normal_matrix)
+    assert torch.isinf(pos_result[0,0]) and pos_result[0,0] > 0, "正无穷与正数相乘应该得到正无穷"
+    assert torch.isinf(pos_result[0,1]) and pos_result[0,1] > 0, "正无穷与正数相乘应该得到正无穷"
+    assert not torch.any(torch.isinf(pos_result[1])), "正常行与正常矩阵相乘不应该得到无穷"
+    
+    # 测试负无穷
+    neg_inf_matrix = torch.tensor([
+        [float('-inf'), 0.0],
+        [1.0, 2.0]
+    ], device=device)
+    
+    neg_result = torch.matmul(neg_inf_matrix, normal_matrix)
+    assert torch.isinf(neg_result[0,0]) and neg_result[0,0] < 0, "负无穷与正数相乘应该得到负无穷"
+    assert torch.isinf(neg_result[0,1]) and neg_result[0,1] < 0, "负无穷与正数相乘应该得到负无穷"
+    
+    # 测试 Inf * 0
+    zero_matrix = torch.zeros(2, 2, device=device)
+    zero_result = torch.matmul(pos_inf_matrix, zero_matrix)
+    assert torch.all(torch.isnan(zero_result[0])), "Inf * 0 应该得到NaN"
+    assert not torch.any(torch.isnan(zero_result[1])), "正常数 * 0 应该得到 0"
+    
+    # 测试正负无穷相加
+    mixed_inf_matrix = torch.tensor([
+        [float('inf'), float('-inf')],
+        [1.0, 2.0]
+    ], device=device)
+    
+    mixed_result = torch.matmul(mixed_inf_matrix, normal_matrix)
+    assert torch.all(torch.isnan(mixed_result[0])), "正负无穷相加应该得到NaN"
+    assert not torch.any(torch.isnan(mixed_result[1])), "正常行不应该得到NaN"
+    
+    print("5.3.2 Inf 测试通过")
+    
+    # 5.3.4 大数与特殊值测试
+    print("5.3.4 开始大数与特殊值测试...")
+    
+    # 1. 大数与小数的测试
+    # 使用较小的大数，避免溢出
+    large_num = 1e30
+    small_num = 1e-30
+    
+    large_small = torch.tensor([
+        [large_num, small_num],
+        [1.0, 2.0]
+    ], device=device)
+    
+    normal_2 = torch.tensor([
+        [1.0, 2.0],
+        [3.0, 4.0]
+    ], device=device)
+    
+    result_1 = torch.matmul(large_small, normal_2)
+    assert torch.isfinite(result_1[0,0]), "较大的数与正常数相乘应该在有限范围内"
+    assert torch.isfinite(result_1[0,1]), "小数与正常数相乘应该在有限范围内"
+    
+    # 2. 极大数与特殊值的测试
+    max_float = torch.finfo(torch.float32).max
+    min_float = torch.finfo(torch.float32).min
+    
+    extreme_special = torch.tensor([
+        [max_float, float('inf')],
+        [min_float, float('nan')]
+    ], device=device)
+    
+    small_matrix = torch.tensor([
+        [1e-10, 2e-10],
+        [3e-10, 4e-10]
+    ], device=device)
+    
+    result_2 = torch.matmul(extreme_special, small_matrix)
+    assert torch.isinf(result_2[0,0]), "极大数与小数相乘可能会溢出成无穷"
+    assert torch.isinf(result_2[0,1]), "Inf与正常数相乘应该得到Inf"
+    assert torch.isnan(result_2[1,0]), "极小负数与小数相乘可能会下溢成NaN"
+    assert torch.isnan(result_2[1,1]), "NaN与正常数相乘应该得到NaN"
+    
+    # 3. 下溢测试
+    tiny_num = torch.finfo(torch.float32).tiny  # 最小的正规化浮点数
+    underflow_matrix = torch.tensor([
+        [tiny_num, tiny_num],
+        [1.0, 2.0]
+    ], device=device)
+    
+    result_3 = torch.matmul(underflow_matrix, small_matrix)
+    assert torch.all(result_3[0] == 0), "非常小的数相乘应该下溢成0"
+    assert not torch.any(result_3[1] == 0), "正常数相乘不应该下溢"
+    
+    print("5.3.4 大数与特殊值测试通过")
+    
+    # 5.3.3 混合特殊值测试
+    print("5.3.3 开始混合特殊值测试...")
+    
+    # 测试 Inf 和 NaN 的不同组合
+    # 1. Inf在第一个元素，NaN在第二个元素
+    mixed_1 = torch.tensor([
+        [float('inf'), float('nan')],
+        [1.0, 2.0]
+    ], device=device)
+    
+    result_1 = torch.matmul(mixed_1, normal_matrix)
+    assert torch.all(torch.isnan(result_1[0])), "Inf和NaN混合的行与正常矩阵相乘应该得到NaN"
+    assert not torch.any(torch.isnan(result_1[1])), "正常行不应该得到NaN"
+    
+    # 2. NaN在第一个元素，Inf在第二个元素
+    mixed_2 = torch.tensor([
+        [float('nan'), float('inf')],
+        [1.0, 2.0]
+    ], device=device)
+    
+    result_2 = torch.matmul(mixed_2, normal_matrix)
+    assert torch.all(torch.isnan(result_2[0])), "NaN和Inf混合的行与正常矩阵相乘应该得到NaN"
+    assert not torch.any(torch.isnan(result_2[1])), "正常行不应该得到NaN"
+    
+    # 3. 测试正负无穷和NaN的组合
+    mixed_3 = torch.tensor([
+        [float('inf'), float('-inf'), float('nan')],
+        [1.0, 2.0, 3.0]
+    ], device=device)
+    
+    normal_3 = torch.tensor([
+        [1.0, 2.0],
+        [3.0, 4.0],
+        [5.0, 6.0]
+    ], device=device)
+    
+    result_3 = torch.matmul(mixed_3, normal_3)
+    assert torch.all(torch.isnan(result_3[0])), "正负无穷和NaN混合的行与正常矩阵相乘应该得到NaN"
+    assert not torch.any(torch.isnan(result_3[1])), "正常行不应该得到NaN"
+    
+    print("5.3.3 混合特殊值测试通过")
+    
+
+    
+    print("特殊值测试全部通过")
+    print("特殊情况测试通过")
+    
+    # 6. 数值精度测试
+    # 6.1 不同数据类型
+    dtypes = [torch.float32, torch.float64]
+    for dtype in dtypes:
+        a = torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=dtype, device=device)
+        b = torch.tensor([[5.0, 6.0], [7.0, 8.0]], dtype=dtype, device=device)
+        result = torch.matmul(a, b)
+        assert result.dtype == dtype
+    
+    # 6.2 大数值
+    a = torch.tensor([[1e10, 1e-10], [1e-10, 1e10]], device=device)
+    b = torch.tensor([[1e10, 1e-10], [1e-10, 1e10]], device=device)
+    result = torch.matmul(a, b)
+    assert not torch.any(torch.isinf(result))
+    print("数值精度测试通过")
+    
+    # 7. 梯度测试
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True, device=device)
+    b = torch.tensor([[5.0, 6.0], [7.0, 8.0]], requires_grad=True, device=device)
+    result = torch.matmul(a, b)
+    loss = result.sum()
+    loss.backward()
+    
+    # 梯度形状检查
+    assert a.grad.shape == a.shape
+    assert b.grad.shape == b.shape
+    
+    # 梯度值检查
+    expected_a_grad = torch.tensor([[11.0, 15.0], [11.0, 15.0]], device=device)
+    expected_b_grad = torch.tensor([[4.0, 4.0], [6.0, 6.0]], device=device)
+    assert torch.allclose(a.grad, expected_a_grad)
+    assert torch.allclose(b.grad, expected_b_grad)
+    print("梯度测试通过")
+    
+    # 8. 性能测试
+    import time
+    
+    # 8.1 大矩阵乘法性能
+    matrix_size = 1000
+    a = torch.randn(matrix_size, matrix_size, device=device)
+    b = torch.randn(matrix_size, matrix_size, device=device)
+    
+    # 预热
+    _ = torch.matmul(a, b)
+    torch.cuda.synchronize() if device.type == 'cuda' else None
+    
+    # 计时
+    start_time = time.time()
+    result = torch.matmul(a, b)
+    torch.cuda.synchronize() if device.type == 'cuda' else None
+    end_time = time.time()
+    
+    print(f"大规模矩阵乘法性能测试:")
+    print(f"    矩阵大小: {matrix_size} x {matrix_size}")
+    print(f"    计算时间: {end_time - start_time:.4f} 秒")
+    print(f"    计算设备: {device}")
+    # 检查结果是否有效（不包含NaN或无穷大）
+    assert not torch.isnan(result).any() and not torch.isinf(result).any()
+    print("性能测试通过")
 
 @allure.epic('llama算子正反向测试')
 @allure.story('基础算子测试')
@@ -448,15 +786,228 @@ def test_fused_adam(device):
 @allure.story('基础运算测试')
 @allure.title('乘法算子测试')
 def test_mul(device):
-    """测试乘法算子的各种情况"""
-    # 标量乘法
+    """测试乘法算子的各种情况，包括标量乘法、向量乘法、广播乘法、特殊值处理等"""
+    print(f"\n在test_mul中使用的设备: {device}")
+    
+    # 1. 标量乘法测试
     a = torch.tensor(2.5, device=device)
     b = torch.tensor(3.0, device=device)
     result = torch.mul(a, b)
     expected = torch.tensor(7.5, device=device)
     assert torch.allclose(result, expected)
+    print("标量乘法测试通过")
     
-    # 向量乘法
+    # 2. 向量乘法测试（逐元素）
+    a = torch.tensor([1.0, 2.0, 3.0], device=device)
+    b = torch.tensor([4.0, 5.0, 6.0], device=device)
+    result = torch.mul(a, b)
+    expected = torch.tensor([4.0, 10.0, 18.0], device=device)
+    assert torch.allclose(result, expected)
+    print("向量乘法测试通过")
+    
+    # 3. 不同数据类型测试
+    a_int = torch.tensor([1, 2, 3], dtype=torch.int32, device=device)
+    b_float = torch.tensor([1.5, 2.5, 3.5], dtype=torch.float32, device=device)
+    result = torch.mul(a_int, b_float)
+    assert result.dtype == torch.float32  # 结果应该是float类型
+    expected = torch.tensor([1.5, 5.0, 10.5], device=device)
+    assert torch.allclose(result, expected)
+    print("不同数据类型乘法测试通过")
+    
+    # 4. 广播乘法测试
+    a = torch.tensor([[1.0], [2.0], [3.0]], device=device)  # shape: (3,1)
+    b = torch.tensor([2.0, 3.0, 4.0], device=device)        # shape: (3,)
+    result = torch.mul(a, b)  # 结果shape应该是(3,3)
+    expected = torch.tensor(
+        [[2.0, 3.0, 4.0],
+         [4.0, 6.0, 8.0],
+         [6.0, 9.0, 12.0]], device=device)
+    assert torch.allclose(result, expected)
+    print("广播乘法测试通过")
+    
+    # 5. 特殊值测试
+    print("开始特殊值测试...")
+    
+    # 5.1 基本特殊值测试
+    special_values = torch.tensor([
+        0.0,                    # 零
+        1.0,                    # 单位元
+        -1.0,                   # 负单位元
+        float('inf'),           # 正无穷
+        float('-inf'),          # 负无穷
+        float('nan')            # NaN
+    ], device=device)
+    
+    # 测试与1相乘
+    result = torch.mul(special_values, torch.tensor(1.0, device=device))
+    assert torch.all(torch.isfinite(result[:-3]))  # 前三个值应该是有限的
+    assert torch.isinf(result[-2]) and torch.isinf(result[-3])  # 无穷值
+    assert torch.isnan(result[-1])  # NaN值
+    print("5.1 基本特殊值测试通过")
+    
+    # 5.2 NaN与各种值的乘法测试
+    nan = torch.tensor(float('nan'), device=device)
+    test_values = torch.tensor([0.0, 1.0, -1.0, float('inf'), float('-inf')], device=device)
+    for val in test_values:
+        result = torch.mul(nan, val)
+        assert torch.isnan(result), f"NaN * {val} 应该返回NaN"
+    print("5.2 NaN乘法测试通过")
+    
+    # 5.3 Inf与各种值的乘法测试
+    inf = torch.tensor(float('inf'), device=device)
+    neg_inf = torch.tensor(float('-inf'), device=device)
+    
+    # Inf * 0 = NaN
+    assert torch.isnan(torch.mul(inf, torch.tensor(0.0, device=device)))
+    assert torch.isnan(torch.mul(neg_inf, torch.tensor(0.0, device=device)))
+    
+    # Inf * Inf = Inf
+    assert torch.isinf(torch.mul(inf, inf)) and torch.mul(inf, inf) > 0
+    
+    # Inf * (-Inf) = -Inf
+    assert torch.isinf(torch.mul(inf, neg_inf)) and torch.mul(inf, neg_inf) < 0
+    
+    # Inf * 正数 = Inf
+    assert torch.isinf(torch.mul(inf, torch.tensor(2.0, device=device))) and torch.mul(inf, torch.tensor(2.0, device=device)) > 0
+    
+    # Inf * 负数 = -Inf
+    assert torch.isinf(torch.mul(inf, torch.tensor(-2.0, device=device))) and torch.mul(inf, torch.tensor(-2.0, device=device)) < 0
+    print("5.3 Inf乘法测试通过")
+    
+    # 5.4 数值稳定性测试
+    tiny = torch.finfo(torch.float32).tiny  # 最小正数
+    huge = torch.finfo(torch.float32).max   # 最大有限数
+    
+    # 测试极小数乘极大数
+    result = torch.mul(torch.tensor(tiny, device=device), torch.tensor(huge, device=device))
+    assert torch.isfinite(result), "极小数乘极大数应该仍然在有限范围内"
+    
+    # 测试下溢
+    result = torch.mul(torch.tensor(tiny, device=device), torch.tensor(tiny, device=device))
+    assert result == 0.0, "两个极小数相乘应该下溢为0"
+    
+    # 测试上溢
+    result = torch.mul(torch.tensor(huge, device=device), torch.tensor(huge, device=device))
+    assert torch.isinf(result) and result > 0, "两个极大数相乘应该上溢为正无穷"
+    print("5.4 数值稳定性测试通过")
+    
+    print("特殊值测试全部通过")
+    
+    # 6. 大数乘法测试
+    print("开始大数乘法测试...")
+    
+    # 6.1 基本大数测试
+    max_float = torch.finfo(torch.float32).max  # 最大浮点数
+    min_float = torch.finfo(torch.float32).min  # 最小浮点数
+    eps = torch.finfo(torch.float32).eps        # 最小精度
+    
+    # 测试大数与小数相乘
+    a = torch.tensor([max_float, min_float, max_float/2], device=device)
+    b = torch.tensor([0.5, -0.5, 2.0], device=device)
+    result = torch.mul(a, b)
+    assert not torch.isnan(result).any()  # 确保结果不包含NaN
+    assert torch.isfinite(result[2])      # 确保较小的结果是有限的
+    print("6.1 基本大数测试通过")
+    
+    # 6.2 数值范围農界测试
+    large_nums = torch.tensor([
+        max_float,           # 最大值
+        max_float - eps,     # 最大值减去最小精度
+        max_float * 0.99,    # 接近最大值
+        min_float,           # 最小值
+        min_float + eps,     # 最小值加上最小精度
+        min_float * 0.99     # 接近最小值
+    ], device=device)
+    
+    # 测试与1接近的数相乘
+    small_factors = torch.tensor([0.999, 1.0, 1.001], device=device)
+    for num in large_nums:
+        for factor in small_factors:
+            result = torch.mul(num, factor)
+            assert not torch.isnan(result), f"{num} * {factor} 不应该产生NaN"
+    print("6.2 数值范围農界测试通过")
+    
+    # 6.3 精度测试
+    precision_test = torch.tensor([
+        1e30, 1e-30,         # 非常大和非常小的数
+        1e15, 1e-15,         # 中等大小的数
+        1e7, 1e-7            # 相对较小的数
+    ], device=device)
+    
+    for i in range(0, len(precision_test), 2):
+        large = precision_test[i]
+        small = precision_test[i+1]
+        product = torch.mul(large, small)
+        # 验证结果是否接近1
+        assert torch.abs(product - 1.0) < 1e-5, f"{large} * {small} 应该接近1"
+    print("6.3 精度测试通过")
+    
+    # 6.4 矩阵大数测试
+    print("开始矩阵大数测试...")
+    
+    # 6.4.1 有限大数矩阵测试
+    matrix_a = torch.tensor([
+        [max_float/8, max_float/16],
+        [max_float/4, max_float/8]
+    ], device=device)
+    
+    matrix_b = torch.tensor([
+        [0.5, 1.0],
+        [1.0, 0.5]
+    ], device=device)
+    
+    result = torch.mul(matrix_a, matrix_b)
+    assert torch.all(torch.isfinite(result)), "有限大数矩阵乘法应该产生有限的结果"
+    print("6.4.1 有限大数矩阵测试通过")
+    
+    # 6.4.2 溢出测试
+    overflow_matrix = torch.tensor([
+        [max_float/2, max_float/2],
+        [max_float/2, max_float/2]
+    ], device=device)
+    
+    # 预期会溢出的乘法
+    result = torch.mul(overflow_matrix, torch.tensor(3.0, device=device))
+    assert torch.any(torch.isinf(result)), "大数乘以3应该产生溢出"
+    print("6.4.2 溢出测试通过")
+    
+    # 6.4.3 混合运算测试
+    mixed_matrix_a = torch.tensor([
+        [max_float/4, 1.0],
+        [1.0, max_float/4]
+    ], device=device)
+    
+    mixed_matrix_b = torch.tensor([
+        [0.5, 1000.0],
+        [1000.0, 0.5]
+    ], device=device)
+    
+    result = torch.mul(mixed_matrix_a, mixed_matrix_b)
+    # 检查对角线上的元素是否有限
+    assert torch.isfinite(result[0,0]) and torch.isfinite(result[1,1]), "混合运算中的小数乘法应该有限"
+    print("6.4.3 混合运算测试通过")
+    
+    print("6.4 矩阵大数测试通过")
+    
+    print("大数乘法测试全部通过")
+    
+    # 7. 就地乘法测试（inplace multiplication）
+    a = torch.tensor([1.0, 2.0, 3.0], device=device)
+    a_copy = a.clone()
+    a.mul_(2.0)  # 就地乘法
+    expected = torch.tensor([2.0, 4.0, 6.0], device=device)
+    assert torch.allclose(a, expected)
+    assert not torch.allclose(a, a_copy)  # 确保原始张量已被修改
+    print("就地乘法测试通过")
+    
+    # 8. 梯度测试
+    a = torch.tensor([1.0, 2.0, 3.0], requires_grad=True, device=device)
+    b = torch.tensor([2.0, 2.0, 2.0], device=device)
+    result = torch.mul(a, b)
+    loss = result.sum()
+    loss.backward()
+    assert torch.allclose(a.grad, b)  # 验证梯度是否正确
+    print("梯度测试通过")
     a = torch.tensor([1.0, 2.0, 3.0], device=device)
     b = torch.tensor([2.0, 3.0, 4.0], device=device)
     result = torch.mul(a, b)

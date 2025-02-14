@@ -14,11 +14,18 @@ def env_info(request):
     """
     测试环境信息fixture，自动运行
     """
+    device = request.config.getoption("--device")
+    device_info = f"CPU"
+    if device == "cuda" and torch.cuda.is_available():
+        device_info = f"CUDA - {torch.cuda.get_device_name()}"
+    
     allure.attach(
         f"""
         测试环境信息:
         操作系统: {platform.system()} {platform.release()}
         Python版本: {platform.python_version()}
+        PyTorch版本: {torch.__version__}
+        测试设备: {device_info}
         测试时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         """,
         "测试环境信息",

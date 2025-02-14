@@ -36,7 +36,7 @@ def run():
     print(allure_data)
     
     # 启动allure报告服务
-    # os.system("allure serve ./report/tmp -h 127.0.0.1 -p 8000")
+    os.system("allure serve ./report/tmp -h localhost -p 8280")
 
 if __name__ == '__main__':
     run()
