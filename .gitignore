@@ -1,3 +1,5 @@
 __pycache__/
 allure-results/
 allure-report/
+report/
+*.swp
