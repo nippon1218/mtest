@@ -3,7 +3,6 @@
 
 import pytest
 import os
-from utils.other_tools.allure_data.allure_report_data import AllureFileClean
 
 def run():
     """
@@ -28,15 +27,11 @@ def run():
     # 运行测试用例
     pytest.main(pytest_args)
     
-    # 生成allure报告
-    os.system("allure generate ./report/tmp -o ./report/html --clean")
-    
-    # 显示测试统计信息
-    allure_data = AllureFileClean().get_case_count()
-    print(allure_data)
-    
-    # 启动allure报告服务
-    os.system("allure serve ./report/tmp -h localhost -p 8280")
+    ## 生成allure报告
+    #os.system("allure generate ./report/tmp -o ./report/html --clean")
+    #
+    ## 启动allure报告服务
+    #os.system("allure serve ./report/tmp -h localhost -p 8280")
 
 if __name__ == '__main__':
     run()

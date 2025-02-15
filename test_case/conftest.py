@@ -6,7 +6,6 @@ import os
 import platform
 from datetime import datetime
 import allure
-from utils import yaml_data
 import torch
 
 @pytest.fixture(scope="session", autouse=True)
@@ -31,29 +30,6 @@ def env_info(request):
         "测试环境信息",
         allure.attachment_type.TEXT
     )
-
-@pytest.fixture
-def yaml_base_path():
-    """
-    返回yaml文件的基础路径
-    """
-    return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
-
-@pytest.fixture
-def load_test_data():
-    """
-    读取测试数据的fixture
-    """
-    def _load_test_data(yaml_file_name):
-        """
-        读取yaml文件数据
-        :param yaml_file_name: yaml文件名
-        :return: 数据
-        """
-        data_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", yaml_file_name)
-        return yaml_data.read_yaml(data_file)
-    
-    return _load_test_data
 
 @pytest.fixture(autouse=True)
 def test_timer():
