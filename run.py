@@ -21,8 +21,19 @@ def run():
         "--clean-alluredir"      # 清理已有的结果
     ]
     
+    # 处理测试路径
+    test_path = 'test_case'  # 默认运行所有测试
+    for i, arg in enumerate(args):
+        if not arg.startswith('-'):
+            test_path = arg
+            args.pop(i)
+            break
+    
     # 添加命令行参数
     pytest_args.extend(args)
+    
+    # 添加测试路径
+    pytest_args.append(test_path)
     
     # 运行测试用例
     pytest.main(pytest_args)
@@ -31,7 +42,7 @@ def run():
     #os.system("allure generate ./report/tmp -o ./report/html --clean")
     #
     ## 启动allure报告服务
-    #os.system("allure serve ./report/tmp -h localhost -p 8280")
+    os.system("allure serve ./report/tmp -h localhost -p 8280")
 
 if __name__ == '__main__':
     run()

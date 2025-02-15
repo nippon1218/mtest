@@ -58,24 +58,19 @@ def pytest_addoption(parser):
 @pytest.fixture(scope="session")
 def device(request):
     """
-    提供测试设备参数（cpu/cuda）
+    提供测试设备参数（cpu/cuda/all）
     """
     dev = request.config.getoption("--device")
+    
     if dev == "cuda":
         if not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
-        dev = torch.device("cuda:0")  # 使用torch.device对象
-    else:
-        dev = torch.device("cpu")
-    
-    print(f"\n当前测试运行设备: {dev}")
-    print(f"PyTorch版本: {torch.__version__}")
-    if dev.type == "cuda":
-        print(f"CUDA版本: {torch.version.cuda}")
+        print(f"\nCUDA版本: {torch.version.cuda}")
         print(f"CUDA设备信息: {torch.cuda.get_device_name()}")
         print(f"CUDA设备数量: {torch.cuda.device_count()}")
+        return "cuda"
     
-    return dev
+    return "cpu"
 
 def pytest_runtest_setup(item):
     """
