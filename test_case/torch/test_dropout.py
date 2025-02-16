@@ -37,9 +37,33 @@ def compare_dropout_statistics(output, x, p, rtol=0.1):
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Dropout层")
+@allure.description("""
+Dropout层的完整测试套件，包含以下测试内容：
+1. 基本功能测试：验证训练和推理模式下的行为
+2. 不同丢弃率测试：验证各种丢弃率的准确性
+3. 数值范围测试：验证对不同量级输入的处理
+4. 随机性测试：验证随机行为和可重现性
+5. CPU和CUDA精度对比：验证跨设备一致性
+
+每个测试用例都包含详细的参数验证和边界条件检查。
+""")
 class TestDropout:
     @allure.story("基本功能测试")
     @allure.title("测试Dropout基本功能 - {dtype}")
+    @allure.description("""
+    验证Dropout层的基本功能，测试要点：
+    1. 训练模式：
+       - 部分元素被置为0
+       - 未被丢弃的元素被正确放大
+       - 输出形状保持不变
+    2. 推理模式：
+       - 输出与输入完全相同
+       - 不进行任何丢弃操作
+    3. 支持的数据类型：
+       - float32和float64
+    4. 设备兼容性：
+       - 支持CPU和CUDA设备
+    """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_basic(self, dtype, device):
@@ -71,6 +95,18 @@ class TestDropout:
         
     @allure.story("不同丢弃率测试")
     @allure.title("测试不同丢弃率 - {device}")
+    @allure.description("""
+    验证Dropout在不同丢弃率下的行为，测试要点：
+    1. 测试多个丢弃率：
+       - 低丢弃率 (0.1)
+       - 中等丢弃率 (0.5)
+       - 高丢弃率 (0.8)
+    2. 统计验证：
+       - 实际丢弃率与目标丢弃率的误差小于5%
+       - 通过多次运行获取稳定的统计结果
+    3. 设备兼容性：
+       - 在CPU和CUDA上保持一致的行为
+    """)
     @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_rates(self, device):
         if device == "cuda" and not torch.cuda.is_available():
@@ -100,6 +136,19 @@ class TestDropout:
                 
     @allure.story("数值范围测试")
     @allure.title("测试Dropout数值范围 - {device}")
+    @allure.description("""
+    验证Dropout对不同数值范围输入的处理，测试要点：
+    1. 输入范围测试：
+       - 小值输入 (1e-3)
+       - 正常值输入 (1.0)
+       - 大值输入 (1e3)
+    2. 数值稳定性：
+       - 检查NaN和Inf
+       - 验证缩放系数的准确性
+    3. 输出验证：
+       - 非零值是输入的正确倍数
+       - 保持数值精度
+    """)
     @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_value_range(self, device):
         if device == "cuda" and not torch.cuda.is_available():
@@ -134,6 +183,18 @@ class TestDropout:
                 
     @allure.story("随机性测试")
     @allure.title("测试Dropout随机性 - {device}")
+    @allure.description("""
+    验证Dropout的随机行为和可重现性，测试要点：
+    1. 随机性验证：
+       - 多次运行产生不同的输出
+       - 不同运行之间的输出模式不同
+    2. 可重现性：
+       - 相同随机种子产生相同结果
+       - 在相同设备上保持一致
+    3. 随机性质量：
+       - 输出分布的均匀性
+       - 避免明显的模式或偏差
+    """)
     @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_randomness(self, device):
         if device == "cuda" and not torch.cuda.is_available():
@@ -164,6 +225,18 @@ class TestDropout:
                 
     @allure.story("CPU和CUDA精度对比测试")
     @allure.title("对比CPU和CUDA输出精度 - {dtype}")
+    @allure.description("""
+    验证Dropout在CPU和CUDA设备上的计算一致性，测试要点：
+    1. 精度对比：
+       - 在不同数据类型下保持一致性
+       - 验证数值误差在可接受范围内
+    2. 随机性控制：
+       - 使用相同的随机种子
+       - 确保CUDA操作的确定性
+    3. 大规模测试：
+       - 使用较大的输入规模
+       - 测试不同的丢弃率
+    """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     def test_dropout_cpu_cuda_precision(self, dtype):
         if not torch.cuda.is_available():
