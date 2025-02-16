@@ -9,6 +9,15 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("SiLU算子")
+@allure.description("""
+该测试模块验证PyTorch中SiLU（Sigmoid Linear Unit）激活函数的功能正确性，包括：
+1. 基本功能：验证不同数据类型的SiLU计算
+2. 边界情况：验证特殊值和极限值的处理
+3. 性能测试：验证大规模数据的计算
+4. 多维度测试：验证不同维度输入的处理
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(6)
 class TestSiLU:
     def setup_method(self, method):
@@ -23,6 +32,13 @@ class TestSiLU:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的SiLU")
+    @allure.description("""
+    验证基本的SiLU计算功能，测试要点：
+    1. 支持多种数据类型（float32、float64）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证SiLU计算的准确性（x * sigmoid(x)）
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     def test_silu_basic(self, device, dtype):
         # 准备测试数据
@@ -61,6 +77,13 @@ class TestSiLU:
 
     @allure.story("边界条件测试")
     @allure.title("测试SiLU的边界值")
+    @allure.description("""
+    验证SiLU对特殊值和极限值的处理，测试要点：
+    1. 处理不同量级的输入（-1e3到1e3）
+    2. 处理特殊值（inf、-inf、nan）
+    3. 验证边界值的计算结果
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_silu_edge_cases(self, device):
         # 准备测试数据，包括非常大和非常小的值
         dtype = torch.float32
@@ -116,6 +139,13 @@ class TestSiLU:
 
     @allure.story("边界条件测试")
     @allure.title("测试大规模SiLU")
+    @allure.description("""
+    验证大规模数据的SiLU计算，测试要点：
+    1. 处理大规模数据（1000x1000）
+    2. 验证输出的符号正确性
+    3. 验证计算的准确性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_silu_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -158,6 +188,13 @@ class TestSiLU:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同维度的SiLU")
+    @allure.description("""
+    验证不同维度输入的SiLU计算，测试要点：
+    1. 处理1D到4D的输入数据
+    2. 验证输出形状的一致性
+    3. 验证计算的准确性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_silu_dimensions(self, device):
         # 准备不同维度的测试数据
         dtype = torch.float32

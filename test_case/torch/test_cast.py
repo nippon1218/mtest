@@ -15,6 +15,14 @@ test_dtypes = [
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Cast算子")
+@allure.description("""
+该测试模块验证PyTorch中Cast算子的功能正确性，包括：
+1. 基本类型转换：验证不同数据类型之间的转换
+2. 特殊值处理：验证对NaN、无穷等特殊值的处理
+3. 性能测试：验证大规模数据的类型转换性能
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(1)
 class TestCast:
     def teardown_method(self, method):
@@ -24,6 +32,13 @@ class TestCast:
     
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型之间的转换 - {src_dtype} -> {dst_dtype}")
+    @allure.description("""
+    验证不同数据类型之间的转换，测试要点：
+    1. 支持各种数据类型的相互转换
+    2. 保持张量的原有形状
+    3. 验证转换后的数值精度
+    4. CPU和CUDA设备结果一致性
+    """)
     @pytest.mark.parametrize("src_dtype", test_dtypes)
     @pytest.mark.parametrize("dst_dtype", test_dtypes)
     def test_cast_basic(self, device, src_dtype, dst_dtype):
@@ -76,6 +91,13 @@ class TestCast:
     
     @allure.story("边界条件测试")
     @allure.title("测试特殊值的类型转换")
+    @allure.description("""
+    验证对特殊值的类型转换处理，测试要点：
+    1. 处理特殊浮点数值（inf、-inf、nan）
+    2. 整数边界值的转换
+    3. 布尔值的转换
+    4. 大数值的安全转换
+    """)
     def test_cast_special_values(self, device):
         special_values = [
             # 测试特殊浮点数值
@@ -145,6 +167,13 @@ class TestCast:
     
     @allure.story("性能测试")
     @allure.title("测试大规模数据的类型转换")
+    @allure.description("""
+    验证大规模数据的类型转换性能，测试要点：
+    1. 使用1000x1000大小的张量
+    2. 验证大规模转换的数值稳定性
+    3. 比较CPU和CUDA设备的转换效率
+    4. 确保内存使用合理
+    """)
     def test_cast_performance(self, device):
         # 准备大规模测试数据
         x = torch.randn(1000, 1000)  # 100万个元素

@@ -9,6 +9,15 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Repeat算子")
+@allure.description("""
+该测试模块验证PyTorch中Repeat算子的功能正确性，包括：
+1. 基本功能：验证不同数据类型的张量重复
+2. 边界情况：验证特殊情况下的重复操作
+3. 性能测试：验证大规模张量的重复
+4. 多维度测试：验证不同维度组合的重复
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(9)
 class TestRepeat:
     def setup_method(self, method):
@@ -23,6 +32,13 @@ class TestRepeat:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的Repeat")
+    @allure.description("""
+    验证基本的张量重复功能，测试要点：
+    1. 支持多种数据类型（float32、float64等）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证重复结果的准确性
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_repeat_basic(self, device, dtype):
         # 准备测试数据
@@ -62,6 +78,13 @@ class TestRepeat:
 
     @allure.story("边界条件测试")
     @allure.title("测试特殊情况的Repeat")
+    @allure.description("""
+    验证特殊情况下的重复操作，测试要点：
+    1. 重复次数为1（相当于复制）
+    2. 重复次数为0（空张量）
+    3. 单元素张量的重复
+    4. 验证CPU和CUDA结果的一致性
+    """)
     def test_repeat_edge_cases(self, device):
         # 准备测试数据
         dtype = torch.float32
@@ -116,6 +139,13 @@ class TestRepeat:
 
     @allure.story("性能测试")
     @allure.title("测试大规模Repeat")
+    @allure.description("""
+    验证大规模张量的重复操作，测试要点：
+    1. 处理大规模张量（100x128）
+    2. 多维度重复（2次和3次）
+    3. 验证重复结果的准确性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_repeat_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -163,6 +193,13 @@ class TestRepeat:
 
     @allure.story("多维度测试")
     @allure.title("测试不同维度组合的Repeat")
+    @allure.description("""
+    验证不同维度组合的重复操作，测试要点：
+    1. 1D到2D的重复
+    2. 2D到3D的重复
+    3. 带有1的维度的重复
+    4. 验证不同维度下的结果准确性
+    """)
     def test_repeat_dimensions(self, device):
         # 准备不同维度的测试数据
         dtype = torch.float32

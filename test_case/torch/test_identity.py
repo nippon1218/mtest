@@ -4,6 +4,7 @@ import allure
 import numpy as np
 from utils.device_utils import get_device_object, get_device_info
 
+@allure.epic("PyTorch算子测试")
 @allure.feature("Identity操作")
 class TestIdentity:
     @allure.story("基本功能测试")

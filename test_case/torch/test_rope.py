@@ -50,6 +50,14 @@ def apply_rotary_emb(x, cos, sin, position_ids=None):
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Rope算子")
+@allure.description("""
+该测试模块验证PyTorch中Rotary Position Embedding (RoPE)的功能正确性，包括：
+1. 基本功能：验证不同数据类型的RoPE计算
+2. 自定义位置：验证使用自定义position_ids的情况
+3. 性能测试：验证大规模数据的RoPE计算
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(5)
 class TestRope:
     def setup_method(self, method):
@@ -91,6 +99,13 @@ class TestRope:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的RoPE")
+    @allure.description("""
+    验证基本的RoPE功能，测试要点：
+    1. 支持多种数据类型（float32、float64）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证RoPE计算的准确性
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
     def test_rope_basic(self, device, dtype):
         # 准备测试数据
@@ -134,6 +149,13 @@ class TestRope:
 
     @allure.story("边界条件测试")
     @allure.title("测试自定义位置的RoPE")
+    @allure.description("""
+    验证使用自定义position_ids的RoPE计算，测试要点：
+    1. 使用自定义的位置顺序
+    2. 验证位置编码的正确性
+    3. 验证输出形状的一致性
+    4. 比较CPU和CUDA结果的一致性
+    """)
     def test_rope_custom_positions(self, device):
         # 准备测试数据
         dtype = torch.float32
@@ -179,6 +201,13 @@ class TestRope:
 
     @allure.story("边界条件测试")
     @allure.title("测试大规模RoPE")
+    @allure.description("""
+    验证大规模数据的RoPE计算，测试要点：
+    1. 处理大规模数据（batch=8, seq_len=512, num_heads=12）
+    2. 验证大规模计算的准确性
+    3. 验证输出形状的一致性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_rope_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32

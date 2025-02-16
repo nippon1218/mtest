@@ -9,6 +9,15 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Mul算子")
+@allure.description("""
+该测试模块验证PyTorch中Mul算子的功能正确性，包括：
+1. 标量乘法：验证张量与标量的乘法运算
+2. 张量乘法：验证两个张量的逻元素乘法
+3. 性能测试：验证大规模张量的乘法运算
+4. 广播乘法：验证不同形状张量的广播乘法
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(2)
 class TestMul:
     def teardown_method(self, method):
@@ -18,6 +27,13 @@ class TestMul:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的标量乘法")
+    @allure.description("""
+    验证张量与标量的乘法运算，测试要点：
+    1. 支持多种数据类型（float32、float64等）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证标量乘法的计算结果
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_mul_scalar(self, device, dtype):
         # 准备测试数据
@@ -55,6 +71,13 @@ class TestMul:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的张量乘法")
+    @allure.description("""
+    验证两个张量的逻元素乘法，测试要点：
+    1. 支持多种数据类型（float32、float64等）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证逻元素乘法的计算结果
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_mul_tensor(self, device, dtype):
         # 准备测试数据
@@ -94,6 +117,13 @@ class TestMul:
 
     @allure.story("边界条件测试")
     @allure.title("测试大规模乘法")
+    @allure.description("""
+    验证大规模张量的乘法运算，测试要点：
+    1. 处理大规模张量（1000x1000）
+    2. 验证大规模计算的准确性
+    3. 比较CPU和CUDA的计算结果
+    4. 验证大规模计算的数值稳定性
+    """)
     def test_mul_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -132,6 +162,13 @@ class TestMul:
 
     @allure.story("边界条件测试")
     @allure.title("测试广播乘法")
+    @allure.description("""
+    验证不同形状张量的广播乘法，测试要点：
+    1. 处理不同形状的张量（(3,1,4) * (2,4)）
+    2. 验证广播后的输出形状（(3,2,4)）
+    3. 验证广播计算的准确性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_mul_broadcast(self, device):
         # 准备测试数据
         dtype = torch.float32

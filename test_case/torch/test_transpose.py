@@ -9,6 +9,15 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Transpose算子")
+@allure.description("""
+该测试模块验证PyTorch中Transpose算子的功能正确性，包括：
+1. 基本功能：验证不同数据类型的转置计算
+2. 边界情况：验证特殊形状和特殊值的处理
+3. 性能测试：验证大规模数据的转置
+4. 多维度测试：验证不同维度组合的转置
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(8)
 class TestTranspose:
     def setup_method(self, method):
@@ -23,6 +32,13 @@ class TestTranspose:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的Transpose")
+    @allure.description("""
+    验证基本的转置功能，测试要点：
+    1. 支持多种数据类型
+    2. 验证输出形状的正确性
+    3. 验证转置结果的准确性
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_transpose_basic(self, device, dtype):
         # 准备测试数据
@@ -68,6 +84,13 @@ class TestTranspose:
 
     @allure.story("边界条件测试")
     @allure.title("测试特殊情况的Transpose")
+    @allure.description("""
+    验证特殊情况下的转置操作，测试要点：
+    1. 单维度张量的转置
+    2. 全零张量的转置
+    3. 单元素张量的转置
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_transpose_edge_cases(self, device):
         # 准备测试数据
         dtype = torch.float32
@@ -122,6 +145,13 @@ class TestTranspose:
 
     @allure.story("性能测试")
     @allure.title("测试大规模Transpose")
+    @allure.description("""
+    验证大规模数据的转置操作，测试要点：
+    1. 处理大规模数据（batch=32, seq_len=512, hidden_size=1024）
+    2. 验证转置的准确性
+    3. 验证输出形状的一致性
+    4. 比较CPU和CUDA的计算结果
+    """)
     def test_transpose_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -169,6 +199,13 @@ class TestTranspose:
 
     @allure.story("多维度测试")
     @allure.title("测试不同维度组合的Transpose")
+    @allure.description("""
+    验证不同维度组合的转置操作，测试要点：
+    1. 2D到2D的转置
+    2. 3D到3D的转置
+    3. 4D到4D的转置
+    4. 验证不同维度下的结果准确性
+    """)
     def test_transpose_dimensions(self, device):
         # 准备不同维度的测试数据
         dtype = torch.float32

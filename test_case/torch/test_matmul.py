@@ -9,6 +9,14 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("MatMul算子")
+@allure.description("""
+该测试模块验证PyTorch中MatMul算子的功能正确性，包括：
+1. 基本功能：验证不同数据类型的矩阵乘法
+2. 性能测试：验证大规模矩阵乘法的正确性
+3. 批量运算：验证批量矩阵乘法的处理
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(3)
 class TestMatMul:
     def setup_method(self, method):
@@ -27,6 +35,13 @@ class TestMatMul:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的矩阵乘法")
+    @allure.description("""
+    验证矩阵乘法在不同数据类型下的功能，测试要点：
+    1. 支持多种数据类型（float32、float64等）
+    2. 验证输出形状和数据类型的正确性
+    3. 验证计算结果的准确性
+    4. 比较CPU和CUDA结果的一致性
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_matmul_basic(self, device, dtype):
         # 检查数据类型是否在CUDA上支持
@@ -70,6 +85,13 @@ class TestMatMul:
 
     @allure.story("边界条件测试")
     @allure.title("测试大规模矩阵乘法")
+    @allure.description("""
+    验证矩阵乘法在大规模数据下的性能和正确性，测试要点：
+    1. 处理大规模矩阵（100x200 * 200x100）
+    2. 验证大矩阵计算的准确性
+    3. 比较CPU和CUDA的计算结果
+    4. 验证大规模计算的数值稳定性
+    """)
     def test_matmul_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -108,6 +130,13 @@ class TestMatMul:
 
     @allure.story("边界条件测试")
     @allure.title("测试批量矩阵乘法")
+    @allure.description("""
+    验证矩阵乘法对批量数据的处理，测试要点：
+    1. 处理三维张量的批量乘法
+    2. 验证输出形状的正确性（3x2x3）
+    3. 比较CPU和CUDA的计算结果
+    4. 验证批量计算的数值准确性
+    """)
     def test_matmul_batch(self, device):
         # 准备批量测试数据
         dtype = torch.float32

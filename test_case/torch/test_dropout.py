@@ -35,6 +35,7 @@ def compare_dropout_statistics(output, x, p, rtol=0.1):
     return (abs(zero_ratio - expected_ratio) < rtol and 
             abs(actual_scale - expected_scale) < rtol * expected_scale)
 
+@allure.epic("PyTorch算子测试")
 @allure.feature("Dropout层")
 class TestDropout:
     @allure.story("基本功能测试")

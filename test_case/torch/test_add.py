@@ -9,6 +9,15 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Add算子")
+@allure.description("""
+该测试模块验证PyTorch中Add算子的功能正确性，包括：
+1. 标量加法：验证张量与标量的加法运算
+2. 张量加法：验证相同形状张量之间的加法
+3. 广播加法：验证不同形状张量之间的广播加法
+4. 性能测试：验证大规模数据下的加法性能
+
+所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
+""")
 @pytest.mark.order(1)
 class TestAdd:
     def teardown_method(self, method):
@@ -18,6 +27,13 @@ class TestAdd:
     
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的标量加法")
+    @allure.description("""
+    验证张量与标量的加法操作，测试要点：
+    1. 支持多种数据类型（float32, float64, int32等）
+    2. 保持张量的原有形状
+    3. CPU和CUDA设备结果一致性
+    4. 数值计算精度
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_add_scalar(self, device, dtype):
         # 准备测试数据
@@ -55,6 +71,13 @@ class TestAdd:
 
     @allure.story("基础功能测试")
     @allure.title("测试不同数据类型的张量加法")
+    @allure.description("""
+    验证两个相同形状张量的加法操作，测试要点：
+    1. 支持多种数据类型（float32, float64, int32等）
+    2. 验证输出张量的形状正确性
+    3. CPU和CUDA设备结果一致性
+    4. 数值计算精度
+    """)
     @pytest.mark.parametrize("dtype", test_dtypes)
     def test_add_tensor(self, device, dtype):
         # 准备测试数据
@@ -94,6 +117,13 @@ class TestAdd:
 
     @allure.story("边界条件测试")
     @allure.title("测试大规模加法")
+    @allure.description("""
+    验证大规模数据下的加法性能，测试要点：
+    1. 使用1000x1000大小的张量
+    2. 验证大规模计算的数值稳定性
+    3. 比较CPU和CUDA设备的计算结果
+    4. 确保内存使用合理
+    """)
     def test_add_performance(self, device):
         # 准备大规模测试数据
         dtype = torch.float32
@@ -132,6 +162,13 @@ class TestAdd:
 
     @allure.story("边界条件测试")
     @allure.title("测试广播加法")
+    @allure.description("""
+    验证不同形状张量之间的广播加法，测试要点：
+    1. 验证广播规则的正确应用
+    2. 测试不同维度组合（3x1x4 + 2x4 -> 3x2x4）
+    3. 验证输出张量形状的正确性
+    4. CPU和CUDA设备结果一致性
+    """)
     def test_add_broadcast(self, device):
         # 准备测试数据
         dtype = torch.float32
