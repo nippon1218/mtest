@@ -2,6 +2,7 @@ import torch
 import pytest
 import allure
 import numpy as np
+import torch.nn.functional as F
 from utils.device_utils import get_device_object, get_device_info
 
 @allure.epic("PyTorch算子测试")
@@ -29,18 +30,25 @@ class TestCrossEntropy:
     def test_cross_entropy_basic(self, dtype, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
-            
+        
         device_obj = get_device_object(device)
         if device == "cuda":
             get_device_info()
-            
+        
         # 创建输入数据
         batch_size, num_classes = 32, 10
-        logits = torch.randn(batch_size, num_classes, dtype=dtype, device=device_obj, requires_grad=True)
-        targets = torch.randint(0, num_classes, (batch_size,), device=device_obj)
+        logits_cpu = torch.randn(batch_size, num_classes, dtype=dtype, requires_grad=True)
+        targets_cpu = torch.randint(0, num_classes, (batch_size,))
         
-        # 计算交叉熵损失
-        loss = torch.nn.functional.cross_entropy(logits, targets)
+        # 在CPU上计算参考结果
+        loss_cpu = torch.nn.functional.cross_entropy(logits_cpu, targets_cpu)
+        loss_cpu.backward()
+        grad_cpu = logits_cpu.grad.clone()
+        
+        # 在指定设备上计算
+        logits = logits_cpu.detach().clone().to(device=device_obj).requires_grad_(True)
+        targets = targets_cpu.to(device=device_obj)
+        loss = F.cross_entropy(logits, targets)
         
         # 验证损失值是标量且为非负数
         assert loss.dim() == 0, "损失应该是标量"
@@ -50,6 +58,11 @@ class TestCrossEntropy:
         loss.backward()
         assert logits.grad is not None, "应该能够计算梯度"
         assert not torch.isnan(logits.grad).any(), "梯度不应包含NaN"
+        
+        # 比较CPU和当前设备的结果
+        if device == "cuda":
+            torch.testing.assert_close(loss.cpu(), loss_cpu, rtol=1e-4, atol=1e-4)
+            torch.testing.assert_close(logits.grad.cpu(), grad_cpu, rtol=1e-4, atol=1e-4)
         
     @allure.story("数值稳定性测试")
     @allure.title("测试交叉熵数值稳定性 - {device}")
@@ -64,7 +77,7 @@ class TestCrossEntropy:
     def test_cross_entropy_numerical_stability(self, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
-            
+        
         device_obj = get_device_object(device)
         dtype = torch.float32
         
@@ -76,16 +89,31 @@ class TestCrossEntropy:
         
         for case_name, scale in test_cases:
             with allure.step(f"测试{case_name}"):
-                logits = torch.full((2, 3), scale, dtype=dtype, device=device_obj, requires_grad=True)
-                targets = torch.tensor([0, 1], device=device_obj)
+                # 在CPU上计算参考结果
+                logits_cpu = torch.full((2, 3), scale, dtype=dtype, requires_grad=True)
+                targets_cpu = torch.tensor([0, 1])
                 
-                loss = torch.nn.functional.cross_entropy(logits, targets)
+                loss_cpu = F.cross_entropy(logits_cpu, targets_cpu)
+                loss_cpu.backward()
+                grad_cpu = logits_cpu.grad.clone()
+                
+                # 在指定设备上计算
+                logits = logits_cpu.detach().clone().to(device=device_obj).requires_grad_(True)
+                targets = targets_cpu.to(device=device_obj)
+                
+                loss = F.cross_entropy(logits, targets)
                 loss.backward()
                 
+                # 验证数值稳定性
                 assert not torch.isnan(loss), f"{case_name}的损失值不应为NaN"
                 assert not torch.isinf(loss), f"{case_name}的损失值不应为Inf"
                 assert not torch.isnan(logits.grad).any(), f"{case_name}的梯度不应包含NaN"
                 assert not torch.isinf(logits.grad).any(), f"{case_name}的梯度不应包含Inf"
+                
+                # 比较CPU和当前设备的结果
+                if device == "cuda":
+                    torch.testing.assert_close(loss.cpu(), loss_cpu, rtol=1e-4, atol=1e-4)
+                    torch.testing.assert_close(logits.grad.cpu(), grad_cpu, rtol=1e-4, atol=1e-4)
                 
     @allure.story("边界情况测试")
     @allure.title("测试交叉熵边界情况 - {device}")
@@ -100,38 +128,83 @@ class TestCrossEntropy:
     def test_cross_entropy_edge_cases(self, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
-            
+        
         device_obj = get_device_object(device)
         dtype = torch.float32
         
         # 测试单个样本
         with allure.step("测试单个样本"):
-            logits = torch.randn(1, 5, dtype=dtype, device=device_obj, requires_grad=True)
-            targets = torch.tensor([2], device=device_obj)
-            loss = torch.nn.functional.cross_entropy(logits, targets)
+            # 在CPU上计算参考结果
+            logits_cpu = torch.randn(1, 5, dtype=dtype, requires_grad=True)
+            targets_cpu = torch.tensor([2])
+            
+            loss_cpu = F.cross_entropy(logits_cpu, targets_cpu)
+            loss_cpu.backward()
+            grad_cpu = logits_cpu.grad.clone()
+            
+            # 在指定设备上计算
+            logits = logits_cpu.detach().clone().to(device=device_obj).requires_grad_(True)
+            targets = targets_cpu.to(device=device_obj)
+            
+            loss = F.cross_entropy(logits, targets)
             loss.backward()
+            
             assert not torch.isnan(loss), "单个样本的损失值不应为NaN"
+            
+            if device == "cuda":
+                torch.testing.assert_close(loss.cpu(), loss_cpu, rtol=1e-4, atol=1e-4)
+                torch.testing.assert_close(logits.grad.cpu(), grad_cpu, rtol=1e-4, atol=1e-4)
             
         # 测试完全正确的预测
         with allure.step("测试完全正确的预测"):
-            logits = torch.zeros(3, 4, dtype=dtype, device=device_obj, requires_grad=True)
-            targets = torch.tensor([0, 1, 2], device=device_obj)
+            # 在CPU上计算参考结果
+            logits_cpu = torch.zeros(3, 4, dtype=dtype, requires_grad=True)
+            targets_cpu = torch.tensor([0, 1, 2])
+            
             # 将正确类别的logit设置为很大的值
-            logits_data = logits.data
-            for i, t in enumerate(targets):
-                logits_data[i, t] = 10.0
-            loss = torch.nn.functional.cross_entropy(logits, targets)
+            for i, t in enumerate(targets_cpu):
+                logits_cpu.data[i, t] = 10.0
+            
+            loss_cpu = F.cross_entropy(logits_cpu, targets_cpu)
+            loss_cpu.backward()
+            grad_cpu = logits_cpu.grad.clone()
+            
+            # 在指定设备上计算
+            logits = logits_cpu.detach().clone().to(device=device_obj).requires_grad_(True)
+            targets = targets_cpu.to(device=device_obj)
+            
+            loss = F.cross_entropy(logits, targets)
             loss.backward()
+            
             assert loss.item() < 1e-3, "完全正确预测的损失应该接近0"
+            
+            if device == "cuda":
+                torch.testing.assert_close(loss.cpu(), loss_cpu, rtol=1e-4, atol=1e-4)
+                torch.testing.assert_close(logits.grad.cpu(), grad_cpu, rtol=1e-4, atol=1e-4)
             
         # 测试完全错误的预测
         with allure.step("测试完全错误的预测"):
-            logits = torch.zeros(3, 4, dtype=dtype, device=device_obj, requires_grad=True)
-            targets = torch.tensor([0, 1, 2], device=device_obj)
+            # 在CPU上计算参考结果
+            logits_cpu = torch.zeros(3, 4, dtype=dtype, requires_grad=True)
+            targets_cpu = torch.tensor([0, 1, 2])
+            
             # 将错误类别的logit设置为很大的值
-            logits_data = logits.data
-            for i, t in enumerate(targets):
-                logits_data[i, (t + 1) % 4] = 10.0
-            loss = torch.nn.functional.cross_entropy(logits, targets)
+            for i, t in enumerate(targets_cpu):
+                logits_cpu.data[i, (t + 1) % 4] = 10.0
+            
+            loss_cpu = F.cross_entropy(logits_cpu, targets_cpu)
+            loss_cpu.backward()
+            grad_cpu = logits_cpu.grad.clone()
+            
+            # 在指定设备上计算
+            logits = logits_cpu.detach().clone().to(device=device_obj).requires_grad_(True)
+            targets = targets_cpu.to(device=device_obj)
+            
+            loss = F.cross_entropy(logits, targets)
             loss.backward()
+            
             assert loss.item() > 5.0, "完全错误预测的损失应该较大"
+            
+            if device == "cuda":
+                torch.testing.assert_close(loss.cpu(), loss_cpu, rtol=1e-4, atol=1e-4)
+                torch.testing.assert_close(logits.grad.cpu(), grad_cpu, rtol=1e-4, atol=1e-4)
