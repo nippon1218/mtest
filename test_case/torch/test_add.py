@@ -40,7 +40,6 @@ class TestAdd:
         a = torch.tensor([[1, 2], [3, 4]], dtype=dtype)
         scalar = 2
         
-        print(f"vincent-----{device}")
         if device == "cpu":
             dev_obj = get_device_object("cpu")
             with allure.step(f"执行标量加法 - 设备: cpu, 数据类型: {dtype}"):

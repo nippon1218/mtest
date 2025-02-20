@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from itertools import product
 import pytest
 import torch
 import allure
@@ -192,3 +193,24 @@ class TestSoftmax:
                 # 比较CPU和当前设备的结果
                 if device == "cuda":
                     torch.testing.assert_close(output.cpu(), output_cpu, rtol=1e-4, atol=1e-4)
+
+
+    def test_softmax_half_to_float(self, device):
+        device_obj = get_device_object(device)
+        _softmax = torch.softmax
+        shapes = [
+            [(2, 3, 5), (2, 3, 5)],
+            [(7, 8, 9, 10), (9, 4)],
+            [(10,), (3, 5, 7)],
+            [(2, 0, 3,  5), (9, 4)],
+            [(10,15), (10, 15)],
+        ]
+        dtypes = [(torch.half, torch.float), (torch.float, torch.float)]
+        for [shape, out_shape], [dtype1, dtype2] in product(*[shapes, dtypes]):
+            x = torch.randn(shape, dtype=dtype1)
+
+            for dim in range(len(shape)):
+                res_cpu = _softmax(x, dim, dtype=dtype2)
+                res_cuda = _softmax(x.cuda(), dim, dtype=dtype2)
+                torch.testing.assert_close(res_cpu, res_cuda.cpu().float(), rtol=2e-4, atol=1e-4)
+

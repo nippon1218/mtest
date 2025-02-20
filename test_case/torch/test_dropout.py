@@ -65,33 +65,59 @@ class TestDropout:
        - 支持CPU和CUDA设备
     """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_basic(self, dtype, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-            
         device_obj = get_device_object(device)
-        if device == "cuda":
-            get_device_info()
             
         # 创建输入数据
         batch_size, features = 32, 64
-        x = torch.ones(batch_size, features, dtype=dtype, device=device_obj)
+        x = torch.ones(batch_size, features, dtype=dtype)
+        x_dev = x.to(device=device_obj)
         dropout = torch.nn.Dropout(p=0.5)
         
         # 训练模式测试
         dropout.train()
-        output = dropout(x)
+        output = dropout(x_dev)
         
         # 验证输出在训练模式下的特性
-        assert output.shape == x.shape, "输出形状应与输入相同"
+        assert output.shape == x_dev.shape, "输出形状应与输入相同"
         assert torch.any(output == 0), "应该有一些元素被置为0"
         assert torch.any(output == 2.0), "未被丢弃的元素应该被放大"
         
         # 推理模式测试
         dropout.eval()
-        output = dropout(x)
-        assert torch.allclose(output, x), "推理模式下输出应该与输入相同"
+        output = dropout(x_dev)
+        assert torch.allclose(output, x_dev), "推理模式下输出应该与输入相同"
+        
+        # 切换回训练模式进行CPU和CUDA的对比
+        dropout.train()
+        output = dropout(x_dev)
+        
+        if device == "cuda":
+            # 在CPU上运行参考结果
+            dropout_cpu = torch.nn.Dropout(p=0.5)
+            dropout_cpu.train()
+            output_cpu = dropout_cpu(x)
+            
+            # 验证统计特性
+            # 1. 检查丢弃率
+            zero_ratio_cpu = (output_cpu == 0).float().mean().item()
+            zero_ratio_cuda = (output.cpu() == 0).float().mean().item()
+            assert abs(zero_ratio_cpu - 0.5) < 0.1, f"CPU的丢弃率应接近 0.5，实际为 {zero_ratio_cpu:.3f}"
+            assert abs(zero_ratio_cuda - 0.5) < 0.1, f"CUDA的丢弃率应接近 0.5，实际为 {zero_ratio_cuda:.3f}"
+            
+            # 2. 检查非零值的缩放
+            non_zero_scale_cpu = output_cpu[output_cpu != 0].mean().item()
+            non_zero_scale_cuda = output.cpu()[output.cpu() != 0].mean().item()
+            assert abs(non_zero_scale_cpu - 2.0) < 0.1, f"CPU的非零值平均应接近 2.0，实际为 {non_zero_scale_cpu:.3f}"
+            assert abs(non_zero_scale_cuda - 2.0) < 0.1, f"CUDA的非零值平均应接近 2.0，实际为 {non_zero_scale_cuda:.3f}"
+            
+            # 推理模式对比
+            dropout_cpu.eval()
+            output_cpu = dropout_cpu(x)
+            
+            dropout.eval()
+            output_cuda = dropout(x_dev)
+            torch.testing.assert_close(output_cuda.cpu(), output_cpu, rtol=1e-5, atol=1e-5)
         
     @allure.story("不同丢弃率测试")
     @allure.title("测试不同丢弃率 - {device}")
@@ -107,16 +133,13 @@ class TestDropout:
     3. 设备兼容性：
        - 在CPU和CUDA上保持一致的行为
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_rates(self, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-            
         device_obj = get_device_object(device)
         dtype = torch.float32
         
         input_size = 10000  # 使用大量样本以获得稳定的统计结果
-        x = torch.ones(input_size, dtype=dtype, device=device_obj)
+        x = torch.ones(input_size, dtype=dtype)
+        x_dev = x.to(device=device_obj)
         
         test_rates = [0.1, 0.5, 0.8]
         for p in test_rates:
@@ -127,12 +150,32 @@ class TestDropout:
                 # 运行多次以获得稳定的统计结果
                 zero_ratios = []
                 for _ in range(10):
-                    output = dropout(x)
+                    output = dropout(x_dev)
                     zero_ratio = (output == 0).float().mean().item()
                     zero_ratios.append(zero_ratio)
                 
                 avg_zero_ratio = sum(zero_ratios) / len(zero_ratios)
                 assert abs(avg_zero_ratio - p) < 0.05, f"实际丢弃率 {avg_zero_ratio:.3f} 应接近目标丢弃率 {p}"
+                
+                if device == "cuda":
+                    # 在CPU上运行参考结果
+                    dropout_cpu = torch.nn.Dropout(p=p)
+                    dropout_cpu.train()
+                    output_cpu = dropout_cpu(x)
+                    
+                    # 验证统计特性
+                    # 1. 检查丢弃率
+                    zero_ratio_cpu = (output_cpu == 0).float().mean().item()
+                    zero_ratio_cuda = (output.cpu() == 0).float().mean().item()
+                    assert abs(zero_ratio_cpu - p) < 0.1, f"CPU的丢弃率应接近 {p}，实际为 {zero_ratio_cpu:.3f}"
+                    assert abs(zero_ratio_cuda - p) < 0.1, f"CUDA的丢弃率应接近 {p}，实际为 {zero_ratio_cuda:.3f}"
+                    
+                    # 2. 检查非零值的缩放
+                    expected_scale = 1.0 / (1.0 - p)
+                    non_zero_scale_cpu = output_cpu[output_cpu != 0].mean().item()
+                    non_zero_scale_cuda = output.cpu()[output.cpu() != 0].mean().item()
+                    assert abs(non_zero_scale_cpu - expected_scale) < 0.1, f"CPU的非零值平均应接近 {expected_scale}，实际为 {non_zero_scale_cpu:.3f}"
+                    assert abs(non_zero_scale_cuda - expected_scale) < 0.1, f"CUDA的非零值平均应接近 {expected_scale}，实际为 {non_zero_scale_cuda:.3f}"
                 
     @allure.story("数值范围测试")
     @allure.title("测试Dropout数值范围 - {device}")
@@ -149,11 +192,7 @@ class TestDropout:
        - 非零值是输入的正确倍数
        - 保持数值精度
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_value_range(self, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-            
         device_obj = get_device_object(device)
         dtype = torch.float32
         
@@ -165,12 +204,13 @@ class TestDropout:
         
         for case_name, value in test_cases:
             with allure.step(f"测试{case_name}"):
-                x = torch.full((100,), value, dtype=dtype, device=device_obj)
+                x = torch.full((100,), value, dtype=dtype)
+                x_dev = x.to(device=device_obj)
                 dropout = torch.nn.Dropout(p=0.5)
                 
                 # 训练模式
                 dropout.train()
-                output = dropout(x)
+                output = dropout(x_dev)
                 assert not torch.isnan(output).any(), f"{case_name}的输出不应包含NaN"
                 assert not torch.isinf(output).any(), f"{case_name}的输出不应包含Inf"
                 
@@ -180,6 +220,25 @@ class TestDropout:
                     assert torch.allclose(non_zero_values / value, 
                                         torch.tensor(2.0, device=device_obj),
                                         rtol=1e-5), "非零值应该是输入值的2倍"
+                
+                if device == "cuda":
+                    # 在CPU上运行参考结果
+                    dropout_cpu = torch.nn.Dropout(p=0.5)
+                    dropout_cpu.train()
+                    output_cpu = dropout_cpu(x)
+                    
+                    # 验证统计特性
+                    # 1. 检查丢弃率
+                    zero_ratio_cpu = (output_cpu == 0).float().mean().item()
+                    zero_ratio_cuda = (output.cpu() == 0).float().mean().item()
+                    assert abs(zero_ratio_cpu - 0.5) < 0.2, f"CPU的丢弃率应接近 0.5，实际为 {zero_ratio_cpu:.3f}"
+                    assert abs(zero_ratio_cuda - 0.5) < 0.2, f"CUDA的丢弃率应接近 0.5，实际为 {zero_ratio_cuda:.3f}"
+                    
+                    # 2. 检查非零值的缩放
+                    non_zero_scale_cpu = output_cpu[output_cpu != 0].mean().item() / value
+                    non_zero_scale_cuda = output.cpu()[output.cpu() != 0].mean().item() / value
+                    assert abs(non_zero_scale_cpu - 2.0) < 0.1, f"CPU的非零值缩放应接近 2.0，实际为 {non_zero_scale_cpu:.3f}"
+                    assert abs(non_zero_scale_cuda - 2.0) < 0.1, f"CUDA的非零值缩放应接近 2.0，实际为 {non_zero_scale_cuda:.3f}"
                 
     @allure.story("随机性测试")
     @allure.title("测试Dropout随机性 - {device}")
@@ -195,21 +254,18 @@ class TestDropout:
        - 输出分布的均匀性
        - 避免明显的模式或偏差
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_dropout_randomness(self, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-            
         device_obj = get_device_object(device)
         dtype = torch.float32
         
         # 创建输入数据
-        x = torch.ones(1000, dtype=dtype, device=device_obj)
+        x = torch.ones(1000, dtype=dtype)
+        x_dev = x.to(device=device_obj)
         dropout = torch.nn.Dropout(p=0.5)
         dropout.train()
         
         # 生成多个输出
-        outputs = [dropout(x) for _ in range(5)]
+        outputs = [dropout(x_dev) for _ in range(5)]
         
         # 验证不同运行之间的输出是否不同
         for i in range(len(outputs)):
@@ -218,10 +274,31 @@ class TestDropout:
                 
         # 验证种子固定时输出相同
         torch.manual_seed(42)
-        output1 = dropout(x)
+        output1 = dropout(x_dev)
         torch.manual_seed(42)
-        output2 = dropout(x)
+        output2 = dropout(x_dev)
         assert torch.allclose(output1, output2), "相同种子下的输出应该相同"
+        
+        if device == "cuda":
+            # 在CPU上运行参考结果
+            dropout_cpu = torch.nn.Dropout(p=0.5)
+            dropout_cpu.train()
+            output_cpu = dropout_cpu(x)
+            
+            with allure.step("验证CPU和CUDA的统计特性"):
+                # 1. 检查丢弃率
+                with allure.step("检查丢弃率"):
+                    zero_ratio_cpu = (output_cpu == 0).float().mean().item()
+                    zero_ratio_cuda = (output1.cpu() == 0).float().mean().item()
+                    assert abs(zero_ratio_cpu - 0.5) < 0.2, f"CPU的丢弃率应接近 0.5，实际为 {zero_ratio_cpu:.3f}"
+                    assert abs(zero_ratio_cuda - 0.5) < 0.2, f"CUDA的丢弃率应接近 0.5，实际为 {zero_ratio_cuda:.3f}"
+                
+                # 2. 检查非零值的缩放
+                with allure.step("检查非零值的缩放"):
+                    non_zero_scale_cpu = output_cpu[output_cpu != 0].mean().item()
+                    non_zero_scale_cuda = output1.cpu()[output1.cpu() != 0].mean().item()
+                    assert abs(non_zero_scale_cpu - 2.0) < 0.2, f"CPU的非零值平均应接近 2.0，实际为 {non_zero_scale_cpu:.3f}"
+                    assert abs(non_zero_scale_cuda - 2.0) < 0.2, f"CUDA的非零值平均应接近 2.0，实际为 {non_zero_scale_cuda:.3f}"
                 
     @allure.story("CPU和CUDA精度对比测试")
     @allure.title("对比CPU和CUDA输出精度 - {dtype}")
@@ -238,11 +315,11 @@ class TestDropout:
        - 测试不同的丢弃率
     """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    def test_dropout_cpu_cuda_precision(self, dtype):
-        if not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
+    def test_dropout_cpu_cuda_precision(self, dtype, device):
+        if device != "cuda":
+            pytest.skip("此测试仅在CUDA设备上运行")
             
-        get_device_info()
+        device_obj = get_device_object(device)
         
         # 创建输入数据
         batch_size, features = 1024, 1024

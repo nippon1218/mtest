@@ -37,7 +37,6 @@ class TestIdentity:
        - 设备位置保持不变
     """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64, torch.int32, torch.int64])
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_identity_basic(self, dtype, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
@@ -79,6 +78,16 @@ class TestIdentity:
                 # 验证设备保持不变
                 assert x.device == y.device, f"输出设备 {y.device} 与输入设备 {x.device} 不一致"
                 
+                if device == "cuda":
+                    with allure.step(f"形状 {shape} 的CPU和CUDA输出对比"):
+                        # 在CPU上运行参考结果
+                        x_cpu = x.cpu()
+                        identity_cpu = torch.nn.Identity()
+                        y_cpu = identity_cpu(x_cpu)
+                        
+                        # 验证CPU和CUDA的输出是否一致
+                        torch.testing.assert_close(y.cpu(), y_cpu, rtol=1e-5, atol=1e-5)
+                
     @allure.story("梯度测试")
     @allure.title("测试Identity梯度传递 - {device}")
     @allure.description("""
@@ -93,7 +102,6 @@ class TestIdentity:
        - 使用随机梯度
        - 验证梯度值的准确性
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_identity_gradient(self, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
@@ -119,6 +127,18 @@ class TestIdentity:
         # 验证梯度是否正确传递
         assert torch.allclose(x.grad, grad_output), "梯度没有正确传递"
         
+        if device == "cuda":
+            with allure.step("CPU和CUDA梯度对比"):
+                # 在CPU上运行参考结果
+                x_cpu = torch.randn(32, 64, dtype=torch.float32, requires_grad=True)
+                identity_cpu = torch.nn.Identity()
+                y_cpu = identity_cpu(x_cpu)
+                grad_output_cpu = grad_output.cpu()
+                y_cpu.backward(grad_output_cpu)
+                
+                # 验证梯度是否一致
+                torch.testing.assert_close(x.grad.cpu(), x_cpu.grad, rtol=1e-5, atol=1e-5)
+        
     @allure.story("内存使用测试")
     @allure.title("测试Identity内存使用 - {device}")
     @allure.description("""
@@ -133,7 +153,6 @@ class TestIdentity:
        - 使用大型张量测试内存效率
        - 验证无不必要的内存复制
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_identity_memory(self, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
@@ -160,6 +179,24 @@ class TestIdentity:
         # 验证修改输入会影响输出
         x[0, 0] = 999.0
         assert y[0, 0] == 999.0, "输入和输出没有共享内存"
+        
+        if device == "cuda":
+            with allure.step("CPU和CUDA内存共享对比"):
+                # 在CPU上运行参考结果
+                x_cpu = torch.randn(1024, 1024, dtype=torch.float32)
+                identity_cpu = torch.nn.Identity()
+                y_cpu = identity_cpu(x_cpu)
+                
+                with allure.step("验证CPU存储空间共享"):
+                    # 验证存储空间共享
+                    x_cpu_storage_ptr = x_cpu.storage().data_ptr()
+                    y_cpu_storage_ptr = y_cpu.storage().data_ptr()
+                    assert x_cpu_storage_ptr == y_cpu_storage_ptr, "CPU上的Identity操作创建了新的内存空间"
+                
+                with allure.step("验证CPU内存修改效果"):
+                    # 验证修改输入会影响输出
+                    x_cpu[0, 0] = 999.0
+                    assert y_cpu[0, 0] == 999.0, "CPU上的输入和输出没有共享内存"
         
     @allure.story("类型转换测试")
     @allure.title("测试Identity类型转换")
@@ -257,7 +294,6 @@ class TestIdentity:
        - 内存使用效率
        - 处理速度
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_identity_batching(self, device):
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA设备不可用")
@@ -282,3 +318,13 @@ class TestIdentity:
                 # 验证每个样本都正确处理
                 for i in range(batch_size):
                     assert torch.all(x[i] == y[i]), f"批处理中的第{i}个样本处理不正确"
+                    
+                if device == "cuda":
+                    with allure.step(f"批大小 {batch_size} 的CPU和CUDA输出对比"):
+                        # 在CPU上运行参考结果
+                        x_cpu = x.cpu()
+                        identity_cpu = torch.nn.Identity()
+                        y_cpu = identity_cpu(x_cpu)
+                        
+                        # 验证CPU和CUDA的输出是否一致
+                        torch.testing.assert_close(y.cpu(), y_cpu, rtol=1e-5, atol=1e-5)

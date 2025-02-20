@@ -26,14 +26,8 @@ class TestCrossEntropy:
     4. 梯度不应包含NaN
     """)
     @pytest.mark.parametrize("dtype", [torch.float32, torch.float64])
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_cross_entropy_basic(self, dtype, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-        
         device_obj = get_device_object(device)
-        if device == "cuda":
-            get_device_info()
         
         # 创建输入数据
         batch_size, num_classes = 32, 10
@@ -73,11 +67,7 @@ class TestCrossEntropy:
     3. 大值输入（1e3）的处理
     4. 验证损失值和梯度不包含NaN或Inf
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_cross_entropy_numerical_stability(self, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-        
         device_obj = get_device_object(device)
         dtype = torch.float32
         
@@ -124,11 +114,7 @@ class TestCrossEntropy:
     3. 完全错误的预测（损失应较大）
     4. 验证各种情况下的数值稳定性
     """)
-    @pytest.mark.parametrize("device", ["cpu", "cuda"])
     def test_cross_entropy_edge_cases(self, device):
-        if device == "cuda" and not torch.cuda.is_available():
-            pytest.skip("CUDA设备不可用")
-        
         device_obj = get_device_object(device)
         dtype = torch.float32
         

@@ -11,6 +11,7 @@ def get_device_object(device_str):
 
 test_dtypes = [
     torch.float16,
+    torch.bfloat16,
     torch.float32,
     torch.float64,
     torch.int32,
@@ -19,6 +20,7 @@ test_dtypes = [
 
 em_test_dtypes = [
     torch.float16,
+    torch.bfloat16,
     torch.float32,
     torch.float64
 ]

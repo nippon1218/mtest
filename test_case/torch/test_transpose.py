@@ -156,7 +156,7 @@ class TestTranspose:
         # 准备大规模测试数据
         dtype = torch.float32
         batch_size = 32
-        seq_len = 512
+        seq_len = 4096
         hidden_size = 1024
         
         x = torch.randn(batch_size, seq_len, hidden_size, dtype=dtype)
