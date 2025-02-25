@@ -18,7 +18,6 @@ from .utils import get_device_object, test_dtypes
 
 所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
 """)
-@pytest.mark.order(9)
 class TestRepeat:
     def setup_method(self, method):
         if torch.cuda.is_available():
@@ -85,6 +84,8 @@ class TestRepeat:
     3. 单元素张量的重复
     4. 验证CPU和CUDA结果的一致性
     """)
+    @pytest.mark.edge_case
+    @pytest.mark.torch
     def test_repeat_edge_cases(self, device):
         # 准备测试数据
         dtype = torch.float32

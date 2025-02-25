@@ -10,7 +10,6 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("FFN Megatron算子")
-@pytest.mark.order(11)
 class TestFFNMegatron:
     def setup_method(self, method):
         if torch.cuda.is_available():

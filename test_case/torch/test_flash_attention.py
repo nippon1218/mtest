@@ -9,7 +9,6 @@ from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Flash Attention算子")
-@pytest.mark.order(10)
 class TestFlashAttention:
     def setup_method(self, method):
         if torch.cuda.is_available():

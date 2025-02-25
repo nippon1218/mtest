@@ -58,7 +58,6 @@ def apply_rotary_emb(x, cos, sin, position_ids=None):
 
 所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
 """)
-@pytest.mark.order(5)
 class TestRope:
     def setup_method(self, method):
         if torch.cuda.is_available():

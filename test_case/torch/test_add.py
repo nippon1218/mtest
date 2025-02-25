@@ -18,7 +18,6 @@ from .utils import get_device_object, test_dtypes
 
 所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
 """)
-@pytest.mark.order(1)
 class TestAdd:
     def teardown_method(self, method):
         if torch.cuda.is_available():

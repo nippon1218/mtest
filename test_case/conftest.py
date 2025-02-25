@@ -8,6 +8,13 @@ from datetime import datetime
 import allure
 import torch
 
+# 尝试导入torch_abc
+torch_abc = None
+try:
+    import torch_abc
+except ImportError:
+    pass
+
 @pytest.fixture(scope="session", autouse=True)
 def env_info(request):
     """
@@ -17,6 +24,8 @@ def env_info(request):
     device_info = f"CPU"
     if device == "cuda" and torch.cuda.is_available():
         device_info = f"CUDA - {torch.cuda.get_device_name()}"
+    elif device == "abc" and torch_abc is not None:
+        device_info = f"ABC - {torch_abc.__version__}"
     
     allure.attach(
         f"""
@@ -51,14 +60,14 @@ def pytest_addoption(parser):
         "--device",
         action="store",
         default="cpu",
-        choices=["cpu", "cuda"],
-        help="选择测试设备：cpu或cuda"
+        choices=["cpu", "cuda", "abc"],
+        help="选择测试设备：cpu、cuda或abc"
     )
 
 @pytest.fixture(scope="session")
 def device(request):
     """
-    提供测试设备参数（cpu/cuda/all）
+    提供测试设备参数（cpu/cuda/abc）
     """
     dev = request.config.getoption("--device")
     
@@ -69,6 +78,11 @@ def device(request):
         print(f"CUDA设备信息: {torch.cuda.get_device_name()}")
         print(f"CUDA设备数量: {torch.cuda.device_count()}")
         return "cuda"
+    elif dev == "abc":
+        if torch_abc is None:
+            pytest.skip("ABC设备不可用（torch_abc导入失败）")
+        print(f"\nABC版本: {torch_abc.__version__}")
+        return "abc"
     
     return "cpu"
 
@@ -99,3 +113,8 @@ def pytest_collection_modifyitems(items):
     for item in items:
         item.name = item.name.encode("utf-8").decode("unicode_escape")
         item._nodeid = item.nodeid.encode("utf-8").decode("unicode_escape")
+
+@pytest.mark.slow
+@pytest.mark.integration
+def test_database_integration():
+    pass

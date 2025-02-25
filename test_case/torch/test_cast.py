@@ -23,7 +23,6 @@ test_dtypes = [
 
 所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
 """)
-@pytest.mark.order(1)
 class TestCast:
     def teardown_method(self, method):
         if torch.cuda.is_available():
@@ -64,7 +63,7 @@ class TestCast:
             assert output.shape == expected.shape, f"输出形状不符合预期: 期望 {expected.shape}, 实际 {output.shape}"
             assert output.dtype == dst_dtype, f"输出数据类型不符合预期: 期望 {dst_dtype}, 实际 {output.dtype}"
             
-            # 对于浮点数到整数的转换，使用allclose进行比较
+            # 对于转到浮点数的情况，使用allclose进行比较
             if dst_dtype in [torch.int32, torch.int64]:
                 assert torch.all(output_cpu == expected), "输出结果不正确"
             else:

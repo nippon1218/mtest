@@ -19,7 +19,6 @@ from .utils import get_device_object, test_dtypes
 
 所有测试都在CPU和CUDA设备上执行，并验证结果的一致性。
 """)
-@pytest.mark.order(7)
 class TestSoftmax:
     @allure.story("基本功能测试")
     @allure.title("测试不同数据类型的Softmax")
