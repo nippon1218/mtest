@@ -1,14 +1,15 @@
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import pytest
 import allure
 import numpy as np
 from utils.device_utils import get_device_object, get_device_info
 
-# 支持的数据类型
+# 支持的数据类型（只有在torch可用时才创建）
 test_dtypes = [
     torch.float32,
     torch.bfloat16
-]
+] if not torch_import_failed else []
 
 # 测试的填充值
 test_values = [

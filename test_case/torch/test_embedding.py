@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import allure
 import numpy as np
 from .utils import get_device_object, em_test_dtypes, em_input_dtypes

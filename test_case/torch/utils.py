@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 
 def get_device_object(device_str):
     """获取torch.device对象"""
+    if torch_import_failed:
+        return None
     if device_str == "cuda":
         return torch.device("cuda:0")
     return torch.device("cpu")

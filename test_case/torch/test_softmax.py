@@ -3,7 +3,8 @@
 
 from itertools import product
 import pytest
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import allure
 import numpy as np
 from .utils import get_device_object, test_dtypes
@@ -161,10 +162,10 @@ class TestSoftmax:
         dtype = torch.float32
         
         test_shapes = [
-            (32,),           # 1D
-            (16, 32),        # 2D
-            (8, 16, 32),     # 3D
-            (4, 8, 16, 32)   # 4D
+            (256, 64),           # 2D
+            (512, 128),        # 2D
+            (1024, 256),     # 3D
+            (4, 1024, 256, 32)   # 4D
         ]
         
         for shape in test_shapes:

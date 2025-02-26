@@ -1,4 +1,5 @@
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import pytest
 import allure
 import numpy as np
@@ -8,7 +9,7 @@ from utils.device_utils import get_device_object, get_device_info
 test_dtypes = [
     (torch.float32, torch.bfloat16),
     (torch.bfloat16, torch.float32)
-]
+] if not torch_import_failed else []
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Copy_算子")

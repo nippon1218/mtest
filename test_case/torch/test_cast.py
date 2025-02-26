@@ -1,4 +1,5 @@
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import pytest
 import allure
 import numpy as np
@@ -11,7 +12,7 @@ test_dtypes = [
     torch.int32,
     torch.int64,
     torch.bool
-]
+] if not torch_import_failed else []
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Cast算子")

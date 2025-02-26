@@ -2,9 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import pytest
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import allure
-import torch.nn.functional as F
+# 正确导入 torch.nn.functional
+from .torch_import import torch
+F = torch.nn.functional if not torch_import_failed else None
 from .utils import get_device_object, test_dtypes
 
 @allure.epic("PyTorch算子测试")

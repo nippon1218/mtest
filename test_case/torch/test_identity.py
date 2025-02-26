@@ -1,4 +1,5 @@
-import torch
+# 使用我们的导入辅助模块替代直接导入
+from .torch_import import torch, torch_import_failed
 import pytest
 import allure
 import numpy as np
