@@ -32,3 +32,8 @@ em_input_dtypes = [
     torch.int32,
     torch.int64
 ]
+
+float_dtypes = [
+    torch.bfloat16,
+    torch.float32
+]
