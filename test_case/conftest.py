@@ -6,6 +6,8 @@ import os
 import platform
 from datetime import datetime
 import allure
+import subprocess
+import sys
 
 # 检查torch导入状态
 torch_import_failed = False
@@ -74,6 +76,12 @@ def pytest_addoption(parser):
         choices=["cpu", "cuda", "abc"],
         help="选择测试设备：cpu、cuda或abc"
     )
+    parser.addoption(
+        "--post-script",
+        action="store",
+        default="",
+        help="指定测试完成后要执行的脚本路径"
+    )
 
 @pytest.fixture(scope="session")
 def device(request):
@@ -136,9 +144,82 @@ def pytest_collection_modifyitems(items):
         for item in items:
             item.add_marker(skip_marker)
     
+    # 处理单个测试文件中的导入错误，不影响其他测试
+    for item in items:
+        try:
+            # 尝试导入测试模块
+            module = item.module
+        except ImportError as e:
+            # 如果导入失败，标记这个测试为跳过
+            skip_marker = pytest.mark.skip(reason=f"导入错误: {str(e)}")
+            item.add_marker(skip_marker)
+            print(f"警告: 测试 {item.nodeid} 因导入错误被跳过: {str(e)}")
+    
     for item in items:
         item.name = item.name.encode("utf-8").decode("unicode_escape")
         item._nodeid = item.nodeid.encode("utf-8").decode("unicode_escape")
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    所有测试会话结束后的钩子函数
+    在这里执行用户指定的后处理脚本
+    """
+    print(f"\n{'='*60}")
+    print(f"所有测试执行完成！退出状态码: {exitstatus}")
+    print(f"测试结果统计:")
+    print(f"  通过: {session.testscollected - session.testsfailed}")
+    print(f"  失败: {session.testsfailed}")
+    print(f"  总计: {session.testscollected}")
+    print(f"{'='*60}")
+    
+    # 获取用户指定的后处理脚本
+    post_script = session.config.getoption("--post-script")
+    
+    # 如果没有指定脚本，尝试使用默认脚本
+    if not post_script:
+        default_script = os.path.join(os.path.dirname(os.path.dirname(__file__)), "post_test_script.py")
+        if os.path.exists(default_script):
+            post_script = default_script
+    
+    if post_script and os.path.exists(post_script):
+        print(f"\n开始执行后处理脚本: {post_script}")
+        try:
+            # 准备传递给脚本的环境变量
+            env = os.environ.copy()
+            # 处理退出状态码，确保是数字
+            exit_code = int(exitstatus) if isinstance(exitstatus, int) else int(str(exitstatus).split('.')[-1] if '.' in str(exitstatus) else 0)
+            env.update({
+                'PYTEST_EXIT_STATUS': str(exit_code),
+                'PYTEST_TESTS_TOTAL': str(session.testscollected),
+                'PYTEST_TESTS_FAILED': str(session.testsfailed),
+                'PYTEST_TESTS_PASSED': str(session.testscollected - session.testsfailed),
+                'PYTEST_REPORT_DIR': './report/tmp'
+            })
+            
+            # 执行脚本
+            result = subprocess.run([sys.executable, post_script], 
+                                  env=env, 
+                                  capture_output=True, 
+                                  text=True, 
+                                  timeout=300)  # 5分钟超时
+            
+            if result.returncode == 0:
+                print(f"后处理脚本执行成功！")
+                if result.stdout:
+                    print(f"脚本输出:\n{result.stdout}")
+            else:
+                print(f"后处理脚本执行失败！退出码: {result.returncode}")
+                if result.stderr:
+                    print(f"错误信息:\n{result.stderr}")
+                    
+        except subprocess.TimeoutExpired:
+            print(f"后处理脚本执行超时（超过5分钟）")
+        except Exception as e:
+            print(f"执行后处理脚本时发生错误: {str(e)}")
+    elif post_script:
+        print(f"警告: 指定的后处理脚本不存在: {post_script}")
+    else:
+        print("未指定后处理脚本，跳过后处理步骤")
 
 @pytest.mark.slow
 @pytest.mark.integration

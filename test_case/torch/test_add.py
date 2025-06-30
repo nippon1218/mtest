@@ -5,8 +5,7 @@ import pytest
 # 使用我们的导入辅助模块替代直接导入
 from .torch_import import torch, torch_import_failed
 import allure
-import numpy as np
-from .utils import get_device_object, test_dtypes
+from .utils import get_device_object, test_dtypes, validate_data
 
 @allure.epic("PyTorch算子测试")
 @allure.feature("Add算子")
@@ -206,3 +205,18 @@ class TestAdd:
                 cuda_output_cpu = cuda_output.cpu()
                 max_diff = torch.max(torch.abs(cpu_output - cuda_output_cpu))
                 assert max_diff < 1e-5, f"CPU和CUDA结果不一致，最大差异: {max_diff}"
+
+    def test_add_golden_test(self, device):
+        # 准备测试数据
+        dir_path1 = "data/add/add_bf16_2048_8192"
+        dir_path2 = "data/add/add_fp32_1024_2048"
+        device_obj = get_device_object(device)
+        print(f"\n=== 在{device}设备上验证加法操作 ===")
+        
+        # 定义加法操作函数
+        def add_op(x, y):
+            return torch.add(x, y)
+        
+        # 使用指定的加法操作函数进行验证
+        max_diff = validate_data(dir_path1, device_obj, add_op)
+        assert max_diff < 1e-5, f"加法计算结果与预期不一致，最大差异: {max_diff}"
