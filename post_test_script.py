@@ -15,15 +15,21 @@ Environment variables:
 """
 
 import os
+import sys
 import json
 import shutil
-import pandas as pd
-import glob
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from reportlab.lib import colors
+import pandas as pd
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from reportlab.lib.units import inch, mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
@@ -224,6 +230,141 @@ def create_pdf_report(dataframe, output_path, title):
     # Build PDF document
     doc.build(elements)
 
+def create_data_visualizations(data_dict, report_dir):
+    """Create data visualizations for the PDF report"""
+    # Create a directory for charts if it doesn't exist
+    charts_dir = Path(report_dir) / "charts"
+    charts_dir.mkdir(exist_ok=True, parents=True)
+    
+    chart_files = []
+    
+    # 1. Create pie chart of test results by category
+    category_counts = {name: len(df) for name, df in data_dict.items()}
+    
+    if category_counts:
+        fig, ax = plt.subplots(figsize=(8, 6))
+        wedges, texts, autotexts = ax.pie(
+            category_counts.values(), 
+            labels=category_counts.keys(),
+            autopct='%1.1f%%',
+            startangle=90,
+            shadow=True,
+            explode=[0.05] * len(category_counts),
+            colors=plt.cm.Paired(np.linspace(0, 1, len(category_counts)))
+        )
+        
+        # Style the chart
+        plt.setp(autotexts, size=10, weight="bold")
+        ax.set_title('Test Distribution by Category', fontsize=14, fontweight='bold')
+        
+        # Save the chart
+        pie_chart_path = charts_dir / "category_distribution.png"
+        plt.tight_layout()
+        plt.savefig(pie_chart_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        chart_files.append(pie_chart_path)
+    
+    # 2. Create bar chart of pass/fail counts if status column exists
+    status_data = {}
+    for category, df in data_dict.items():
+        # Check if there's a status or result column
+        status_col = None
+        for col in df.columns:
+            if col.lower() in ['status', 'result', 'outcome', 'pass/fail', 'passed']:
+                status_col = col
+                break
+        
+        if status_col:
+            status_counts = df[status_col].value_counts()
+            status_data[category] = status_counts
+    
+    if status_data:
+        # Prepare data for grouped bar chart
+        categories = list(status_data.keys())
+        statuses = set()
+        for counts in status_data.values():
+            statuses.update(counts.index)
+        statuses = list(statuses)
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+        bar_width = 0.8 / len(statuses)
+        opacity = 0.8
+        
+        for i, status in enumerate(statuses):
+            counts = [status_data[cat].get(status, 0) for cat in categories]
+            x = np.arange(len(categories))
+            rects = ax.bar(x + i*bar_width, counts, bar_width,
+                           alpha=opacity, label=status)
+            
+            # Add count labels on top of bars
+            for rect in rects:
+                height = rect.get_height()
+                if height > 0:
+                    ax.annotate(f'{height}',
+                               xy=(rect.get_x() + rect.get_width()/2, height),
+                               xytext=(0, 3),  # 3 points vertical offset
+                               textcoords="offset points",
+                               ha='center', va='bottom')
+        
+        # Add labels and legend
+        ax.set_xlabel('Test Categories')
+        ax.set_ylabel('Number of Tests')
+        ax.set_title('Test Results by Category and Status', fontsize=14, fontweight='bold')
+        ax.set_xticks(x + bar_width * (len(statuses) - 1) / 2)
+        ax.set_xticklabels(categories)
+        ax.legend()
+        
+        # Save the chart
+        status_chart_path = charts_dir / "status_by_category.png"
+        plt.tight_layout()
+        plt.savefig(status_chart_path, dpi=150, bbox_inches='tight')
+        plt.close()
+        chart_files.append(status_chart_path)
+    
+    # 3. Create execution time chart if time data exists
+    time_data = {}
+    for category, df in data_dict.items():
+        # Check if there's a time or duration column
+        time_col = None
+        for col in df.columns:
+            if any(t in col.lower() for t in ['time', 'duration', 'elapsed', 'execution']):
+                time_col = col
+                break
+        
+        if time_col and pd.api.types.is_numeric_dtype(df[time_col]):
+            time_data[category] = df[time_col].describe()
+    
+    if time_data:
+        # Create box plot for execution times
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Prepare data for box plot
+        box_data = []
+        labels = []
+        for category, df in data_dict.items():
+            for col in df.columns:
+                if any(t in col.lower() for t in ['time', 'duration', 'elapsed', 'execution']):
+                    if pd.api.types.is_numeric_dtype(df[col]):
+                        box_data.append(df[col].values)
+                        labels.append(category)
+                        break
+        
+        if box_data:
+            ax.boxplot(box_data, labels=labels, patch_artist=True)
+            ax.set_title('Test Execution Time Distribution by Category', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Time (seconds)')
+            ax.grid(True, linestyle='--', alpha=0.7)
+            
+            # Save the chart
+            time_chart_path = charts_dir / "execution_time.png"
+            plt.tight_layout()
+            plt.savefig(time_chart_path, dpi=150, bbox_inches='tight')
+            plt.close()
+            chart_files.append(time_chart_path)
+    
+    return chart_files
+
 def create_consolidated_pdf_report(data_dict, output_path):
     """Create a professional consolidated PDF report with tables from all subdirectories"""
     # Import additional ReportLab components for advanced features
@@ -233,6 +374,10 @@ def create_consolidated_pdf_report(data_dict, output_path):
     from reportlab.platypus.doctemplate import PageTemplate, BaseDocTemplate, NextPageTemplate
     from reportlab.platypus.frames import Frame
     from reportlab.pdfgen.canvas import Canvas
+    
+    # Generate data visualizations
+    report_dir = Path(output_path).parent
+    chart_files = create_data_visualizations(data_dict, report_dir)
     
     # Define page size and margins
     page_width, page_height = A4
@@ -360,6 +505,32 @@ def create_consolidated_pdf_report(data_dict, output_path):
     elements.append(Paragraph(f"Total Test Cases: {total_tests}", normal_style))
     elements.append(Paragraph(f"Test Categories: {len(data_dict)}", normal_style))
     elements.append(Spacer(1, 0.5*inch))
+    
+    # Add data visualizations
+    if chart_files:
+        elements.append(Paragraph("TEST RESULTS VISUALIZATION", heading1_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        for chart_file in chart_files:
+            # Add chart description
+            chart_name = chart_file.stem
+            if "category_distribution" in chart_name:
+                elements.append(Paragraph("Test Distribution by Category", heading2_style))
+                elements.append(Paragraph("The following chart shows the distribution of tests across different categories:", normal_style))
+            elif "status_by_category" in chart_name:
+                elements.append(Paragraph("Test Results by Status and Category", heading2_style))
+                elements.append(Paragraph("The following chart shows the pass/fail distribution for each test category:", normal_style))
+            elif "execution_time" in chart_name:
+                elements.append(Paragraph("Test Execution Time Analysis", heading2_style))
+                elements.append(Paragraph("The following chart shows the execution time distribution for tests in each category:", normal_style))
+            
+            # Add the chart image
+            img = Image(str(chart_file), width=450, height=300)
+            img.hAlign = 'CENTER'
+            elements.append(img)
+            elements.append(Spacer(1, 0.25*inch))
+        
+        elements.append(PageBreak())
     
     # Add automatic Table of Contents
     toc = TableOfContents()
