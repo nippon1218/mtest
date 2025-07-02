@@ -1,0 +1,69 @@
+# PDF Report Configuration
+pdf:
+  # Output paths
+  output:
+    consolidated_report: "result/sdc_report.pdf"
+    charts_directory: "result/charts"
+  
+  # Visual styling
+  style:
+    title_font_size: 18
+    heading1_font_size: 16
+    heading2_font_size: 14
+    normal_font_size: 10
+    table_header_color: "darkblue"
+    table_header_text_color: "whitesmoke"
+    table_alternate_color: "lightgrey"
+    table_background_color: "beige"
+  
+  # Page settings
+  page:
+    margin_left: 72
+    margin_right: 72
+    margin_top: 72
+    margin_bottom: 72
+
+# Directory paths
+directories:
+  result: "./result"
+  report: "./report"
+  backup: "./report/backup"
+
+# Report content
+report:
+  language: "zh-CN"
+  title: "SDC V0.5 测试报告"
+  subtitle: "测试列表"
+  toc_title: "目录"
+  visualization_title: "可视化分析"
+  footer_text: "本报告由 ECOSDA 测试团队自动生成"
+  header_text: "ECOSDA 公司"
+  
+  # 目录标题和描述映射
+  directory_mappings:
+    smoke:
+      title: "冒烟测试套件"
+      description: "本节包含验证基本功能的冒烟测试结果。"
+    fallback:
+      title: "回退测试套件"
+      description: "本节包含验证系统恢复能力的回退测试结果。"
+    # 可以添加更多目录映射
+    default:
+      title: "测试套件"
+      description: "本节包含测试结果。"
+
+# Chart settings
+charts:
+  dpi: 150
+  pie_chart:
+    title: "测试类别分布"
+    filename: "category_distribution.png"
+    figsize: [8, 6]
+  status_chart:
+    title: "各类别测试结果状态"
+    filename: "status_by_category.png"
+    figsize: [10, 6]
+  time_chart:
+    title: "各类别测试执行时间分布"
+    filename: "execution_time.png"
+    figsize: [10, 6]
